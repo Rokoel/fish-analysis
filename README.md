@@ -1,6 +1,6 @@
 # FISH Analysis
 
-**[Download a release](https://github.com/Rokoel/cell-nn/releases/latest)** ·
+**[Download a release](https://github.com/Rokoel/fish-analysis/releases/latest)** ·
 **[Analysis guide](docs/fish-analysis.md)** · **[Documentation](docs/README.md)** ·
 **[Models and evidence](docs/models.md)**
 
@@ -10,6 +10,30 @@
 FISH Analysis helps researchers analyze Imaris scans by automating cell contouring,
 signal detection, and shortest 3D distances from signals to cell surfaces.
 It supports human judgment, with results available for review and correction.
+
+### Why a separate tool?
+
+Imaris can perform many of the same individual operations, including cell/surface
+segmentation, spot detection and distance measurements. FISH Analysis is intended
+for a different workflow: its bundled models are trained specifically for the
+microscopy acquisitions used by the project and can then be applied without
+interactive foreground/background painting or per-scan segmentation training.
+
+For routine analysis, the operator checks the channel roles and starts the
+pipeline. The same fixed models and thresholds can be applied across scans from
+different acquisition groups; manual correction is available when needed, but it
+is not part of the automatic inference procedure.
+
+The project also keeps the analysis inspectable and reproducible: model
+checkpoints, thresholds, processing code and evaluation reports are versioned
+together. Results can still be exported as Imaris-compatible scenes, so the tool
+can be used as a specialized automatic analysis stage rather than as a replacement
+for Imaris visualization and downstream inspection.
+
+The goal is therefore not to reproduce every Imaris feature or claim universal
+superiority over interactive segmentation. It is to provide a free, repeatable
+pipeline for this specific FISH workflow with no interactive segmentation tuning
+required for each analyzed scan.
 
 - **Analysis** is the main app, it processes scans, supports result editing, and exports Imaris, Excel and CSV files.
 - **Viewer** displays scans and annotations in 2D/3D and provides model inference and training tools.
