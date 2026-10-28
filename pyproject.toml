@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fish-viewer"
-version = "0.9.0"
+version = "0.9.1"
 description = "Desktop viewer for Imaris microscopy images and saved cell annotations"
 requires-python = ">=3.11"
 dependencies = [

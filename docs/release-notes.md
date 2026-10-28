@@ -1,4 +1,4 @@
-# FISH Analysis v0.9.0
+# FISH Analysis v0.9.1
 
 This release focuses on more selective consensus detection, reliable imported
 annotations, contour editing, cross-channel measurements and standalone IMS/Excel
@@ -38,8 +38,8 @@ conditional on matches. Sparse annotations cannot establish the overall precisio
 of unmatched detections. This historically reused test fold is exploratory, not
 independent validation of the default threshold.
 
-[Full roundness report and raw results](https://github.com/Rokoel/fish-analysis/blob/v0.9.0/reports/consensus-roundness-20261028/README.md) ·
-[Fine-tuned StarDist report](https://github.com/Rokoel/fish-analysis/blob/v0.9.0/reports/stardist2d/README.md)
+[Full roundness report and raw results](https://github.com/Rokoel/fish-analysis/blob/v0.9.1/reports/consensus-roundness-20261028/README.md) ·
+[Fine-tuned StarDist report](https://github.com/Rokoel/fish-analysis/blob/v0.9.1/reports/stardist2d/README.md)
 
 ## Annotation and export fixes
 
@@ -85,6 +85,12 @@ removed. Reusable training and evaluation tools accept explicit inputs.
 Historical reports are consolidated into one local report, excluded from Git and
 release bundles. The latest consensus roundness report and fine-tuned StarDist
 report remain public, preserving their original cohorts and parameters.
+
+## Windows report portability
+
+Generated roundness reports and their CSV tables now use explicit UTF-8 encoding,
+including on Windows systems whose default encoding cannot represent scientific
+symbols. A regression test reproduces that Windows encoding before checking the fix.
 
 ## Verification and downloads
 

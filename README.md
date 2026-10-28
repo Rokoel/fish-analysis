@@ -5,7 +5,7 @@ review and edit their annotations, and measure physical 3D cell volumes,
 signal-to-border distances and distances between nearby signals of different colors.
 Original scans and annotations are opened read-only.
 
-**[Download v0.9.0](https://github.com/Rokoel/fish-analysis/releases/tag/v0.9.0)** ·
+**[Download v0.9.1](https://github.com/Rokoel/fish-analysis/releases/tag/v0.9.1)** ·
 **[Analysis guide](docs/fish-analysis.md)** · **[Documentation](docs/README.md)** ·
 **[Models and evaluation](docs/models.md)**
 

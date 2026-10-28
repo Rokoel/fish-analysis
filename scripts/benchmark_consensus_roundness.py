@@ -185,7 +185,7 @@ def publish(output, rows, identity, verification):
                                       cut=row['cut_references'][pair['reference_id']],
                                       minimum_roundness=row['minimum_roundness']) for pair in row[field])
     for name, table in tables.items():
-        with (output / f'{name}.csv').open('w', newline='') as stream:
+        with (output / f'{name}.csv').open('w', newline='', encoding='utf-8') as stream:
             fields = list(dict.fromkeys(key for row in table for key in row))
             writer = csv.DictWriter(stream, fieldnames=fields)
             writer.writeheader()
@@ -244,7 +244,7 @@ def publish(output, rows, identity, verification):
                   'Keep the final threshold-selection calibration separate from this exploratory test sweep. '
                   'The current app still uses its manual minimum-roundness setting; no Auto selector or new '
                   'quality model is introduced by this benchmark.'])
-    (output / 'README.md').write_text('\n'.join(lines) + '\n')
+    (output / 'README.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     plot_comparison(output, report)
     return report
 

@@ -81,8 +81,12 @@ def test_roundness_report_rejects_missing_duplicate_or_wrong_channel_results():
         validate_complete(wrong, identity)
 
 
-def test_future_roundness_publication_handles_no_manual_matches(tmp_path):
+def test_future_roundness_publication_handles_no_manual_matches(tmp_path, monkeypatch):
     from benchmark_consensus_roundness import publish, THRESHOLDS
+    original_write = Path.write_text
+    def windows_write(path, data, encoding=None, errors=None, newline=None):
+        return original_write(path, data, encoding=encoding or 'cp1252', errors=errors, newline=newline)
+    monkeypatch.setattr(Path, 'write_text', windows_write)
     identity=dict(channels={'scan':1},thresholds=list(THRESHOLDS),scans=1)
     rows=[dict(image='scan',minimum_roundness=minimum,cell_channel=1,split='test',group='g',
         references=0,complete_references=0,cells_before_filter=0,final_cells=0,signals=0,
@@ -92,4 +96,5 @@ def test_future_roundness_publication_handles_no_manual_matches(tmp_path):
     assert report['status']=='complete'
     assert all(summary['volume']['n']==summary['distance']['n']==0 for summary in report['summary'].values())
     assert 'All 1 supplied test scans' in report['policy']
-    assert 'n/a' in (tmp_path/'README.md').read_text()
+    text = (tmp_path/'README.md').read_text(encoding='utf-8')
+    assert 'n/a' in text and '≥' in text
