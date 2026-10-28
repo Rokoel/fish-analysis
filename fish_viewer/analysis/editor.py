@@ -1,10 +1,12 @@
-"""Minimal annotation selection and calibrated 2D point editing controls."""
+"""Annotation selection and calibrated contour-editing tools."""
 
 import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 from shiboken6 import isValid
 
-from ..views import mesh_for
+from ..views import mesh_for, slice_segments
+from .editor_controls import EditingControls
+from .editor_interaction import EditingInteraction
 from .annotations import AnnotationDocument, origin
 
 
@@ -18,7 +20,8 @@ class Handle(QtWidgets.QGraphicsEllipseItem):
             self.GraphicsItemFlag.ItemIsMovable
             | self.GraphicsItemFlag.ItemIgnoresTransformations
         )
-        self.setBrush(QtGui.QColor("#ffffff"))
+        anchor = (2 - editor.window.slice_view.axis, *np.round(xyz, 7))
+        self.setBrush(QtGui.QColor("#fff06a" if anchor in editor.point_selection else "#ffffff"))
         self.setPen(QtGui.QPen(QtGui.QColor("#205e58")))
         self.setZValue(20)
         self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
@@ -42,22 +45,29 @@ class Handle(QtWidgets.QGraphicsEllipseItem):
 
     def mousePressEvent(self, event):
         self.selection = self.editor.selection
+        self.document = self.editor.document
+        self.scene_state = self.document.dataset.scene
         self.axis = 2 - self.editor.window.slice_view.axis
         self.drag_start = event.scenePos()
         self.initial_position = self.pos()
-        if self.vertex is not None:
-            self.editor.vertex.setValue(self.vertex + 1)
+        anchor = (self.axis, *np.round(self.xyz, 7))
+        self.editor.choose_point(self, anchor in self.editor.point_selection or bool(
+            event.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier), redraw=False)
+        self.anchors = list(self.editor.point_selection)
         self.setCursor(QtCore.Qt.CursorShape.ClosedHandCursor)
         event.accept()
 
     def mouseMoveEvent(self, event):
+        if self.editor.mode == 'select' or self.editor.mode == 'add':
+            event.accept()
+            return
         # Use scene coordinates explicitly so zoom and image panning cannot
         # turn a point drag into a view drag. The slice coordinate stays fixed.
         self.setPos(self.initial_position + event.scenePos() - self.drag_start)
         xyz = self.xyz.copy()
         u, v = self.editor.window.slice_view.projection_axes
         xyz[u], xyz[v] = self.pos().x(), self.pos().y()
-        self.editor.preview_point(self.selection, self.vertex, self.xyz, xyz)
+        self.editor.preview_point(self.selection, self.vertex, self.xyz, xyz, self.anchors)
         event.accept()
 
     def mouseReleaseEvent(self, event):
@@ -69,110 +79,28 @@ class Handle(QtWidgets.QGraphicsEllipseItem):
         xyz[v] = self.pos().y()
         if not np.array_equal(xyz, self.xyz):
             # Rebuilding overlays must not destroy this item during its own event.
-            editor, vertex = self.editor, self.vertex
-            if self.selection[0] == "surface":
-                original = self.xyz.copy()
-                selection, axis = self.selection, self.axis
-                QtCore.QTimer.singleShot(
-                    0,
-                    lambda: editor.perform(
-                        lambda: editor.document.move_section(
-                            selection[1], original, xyz, axis=axis
-                        )
-                    ),
-                )
-            else:
-                QtCore.QTimer.singleShot(0, lambda: editor.move_point(vertex, xyz))
+            editor, selection = self.editor, self.selection
+            original, axis, anchors = self.xyz.copy(), self.axis, list(self.anchors)
+            document, scene = self.document, self.scene_state
+            def commit():
+                # Undo, deletion or switching scans can replace this scene before
+                # the queued edit runs; its old index may now identify another cell.
+                if (editor.document is document and document.dataset.scene is scene
+                        and editor.selection == selection):
+                    editor.commit_handle(selection, original, xyz, axis, anchors)
+            QtCore.QTimer.singleShot(0, commit)
 
 
-class AnnotationEditor(QtWidgets.QWidget):
+class AnnotationEditor(EditingControls, EditingInteraction, QtWidgets.QWidget):
     def __init__(self, window):
         super().__init__()
         self.window = window
         self.document = None
         self.selection = None
         self.handles = []
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
-        row = QtWidgets.QHBoxLayout()
-        self.manual = QtWidgets.QCheckBox("Manual")
-        self.program = QtWidgets.QCheckBox("Program")
-        for box in (self.manual, self.program):
-            box.setChecked(True)
-            box.toggled.connect(self.visibility)
-            row.addWidget(box)
-        layout.addLayout(row)
-        self.warning = QtWidgets.QLabel()
-        self.warning.setWordWrap(True)
-        self.warning.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Ignored, QtWidgets.QSizePolicy.Policy.Preferred
-        )
-        layout.addWidget(self.warning)
-        self.tree = QtWidgets.QTreeWidget()
-        self.tree.setHeaderLabels(["Annotation", "Volume / distance"])
-        self.tree.setMaximumHeight(170)
-        self.tree.currentItemChanged.connect(self.select)
-        layout.addWidget(self.tree)
-        row = QtWidgets.QHBoxLayout()
-        delete = QtWidgets.QPushButton("Delete selected")
-        delete.clicked.connect(self.delete)
-        row.addWidget(delete)
-        self.undo_button = QtWidgets.QPushButton("Undo")
-        self.undo_button.clicked.connect(
-            lambda: self.document.undo.undo() if self.document else None
-        )
-        row.addWidget(self.undo_button)
-        layout.addLayout(row)
-        self.edit = QtWidgets.QCheckBox("Edit points (drag white dots)")
-        self.edit.setChecked(True)
-        self.edit.toggled.connect(self.draw_handles)
-        layout.addWidget(self.edit)
-        self.tool = QtWidgets.QComboBox()
-        self.tool.addItems(["Select / move", "Add contour point", "Add signal"])
-        layout.addWidget(self.tool)
-        row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel("Point"))
-        self.vertex = QtWidgets.QSpinBox()
-        self.vertex.setMinimum(1)
-        self.vertex.valueChanged.connect(self.coordinates)
-        row.addWidget(self.vertex)
-        remove = QtWidgets.QPushButton("Delete point")
-        remove.clicked.connect(self.delete_point)
-        row.addWidget(remove)
-        layout.addLayout(row)
-        positions = QtWidgets.QFormLayout()
-        self.xyz = []
-        for axis in "XYZ":
-            spin = QtWidgets.QDoubleSpinBox()
-            spin.setRange(-1e6, 1e6)
-            spin.setDecimals(4)
-            self.xyz.append(spin)
-            positions.addRow(axis, spin)
-        layout.addLayout(positions)
-        move = QtWidgets.QPushButton("Apply point position")
-        move.clicked.connect(
-            lambda: self.move_point(
-                self.vertex.value() - 1, [s.value() for s in self.xyz]
-            )
-        )
-        layout.addWidget(move)
-        self.signal_channel = QtWidgets.QComboBox()
-        self.signal_channel.setSizeAdjustPolicy(
-            QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
-        )
-        self.signal_channel.setMinimumContentsLength(12)
-        layout.addWidget(self.signal_channel)
-        self.export = QtWidgets.QPushButton("Export edited Imaris…")
-        self.export.clicked.connect(self.export_scene)
-        layout.addWidget(self.export)
-        info = QtWidgets.QLabel(
-            "Select a contour and drag its white dots on the current slice. Ctrl+wheel zooms; drag empty space to pan. B points follow the nearest cell border automatically. Edited objects become Program annotations."
-        )
-        info.setWordWrap(True)
-        info.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Ignored, QtWidgets.QSizePolicy.Policy.Preferred
-        )
-        layout.addWidget(info)
+        self.initialize_interaction()
+        self.influence_item = None
+        self.build_controls()
         self.shortcut = QtGui.QShortcut(QtGui.QKeySequence.StandardKey.Undo, window)
         self.shortcut.activated.connect(
             lambda: (
@@ -197,10 +125,16 @@ class AnnotationEditor(QtWidgets.QWidget):
         )
         self.image_delete_shortcut.activated.connect(self.delete)
         window.slice_view.viewport().installEventFilter(self)
+        window.slice_view.installEventFilter(self)
+        self.redo_shortcut = QtGui.QShortcut(QtGui.QKeySequence.StandardKey.Redo, window)
+        self.redo_shortcut.activated.connect(lambda: self.document.undo.redo() if self.document and not window.running and not window.loading else None)
+        self.update_controls()
         window.slice_view.overlays_updated.connect(self.draw_handles)
 
     def set_dataset(self, dataset, report, cached=None):
-        self.selection = None
+        self.reset_interaction()
+        self.simplification_report.clear()
+        self.simplification_report.hide()
         self.warning.setText(
             "\n".join(w for w in dataset.scene.warnings if "no saved" not in w.lower())
         )
@@ -208,6 +142,9 @@ class AnnotationEditor(QtWidgets.QWidget):
         self.document = cached or AnnotationDocument(dataset, report, self.changed)
         self.document.dataset = dataset
         self.document.changed = self.changed
+        if not cached and 'signal_pairing' not in self.document.report_template:
+            self.document.pairing_max_distance = self.window.pair_distance.value()
+            self.document.recalculate()
         self.document.undo.canUndoChanged.connect(self.undo_button.setEnabled)
         self.signal_channel.clear()
         for i, c in enumerate(dataset.metadata.channels):
@@ -223,12 +160,22 @@ class AnnotationEditor(QtWidgets.QWidget):
     def changed(self):
         w = self.window
         view = w.slice_view
+        w.pair_distance.blockSignals(True)
+        w.pair_distance.setValue(self.document.pairing_max_distance)
+        w.pair_distance.blockSignals(False)
+        self.selections = {key for key in self.selections if self.annotation_object(key) is not None}
+        if self.selection not in self.selections:
+            self.selection = next(iter(sorted(self.selections)), None)
+            self.point_selection.clear()
+            self.active_point = None
+        if self.mode in ('precise', 'proportional') and not self.single_contour():
+            self.set_tool_mode('move' if self.selections else 'select')
         view.meshes = [mesh_for(s) for s in w.dataset.scene.surfaces]
         view._cuts.clear()
         self.tree.blockSignals(True)
         self.tree.clear()
         for category in ("Manual", "Program"):
-            parent = QtWidgets.QTreeWidgetItem([category])
+            parent = QtWidgets.QTreeWidgetItem(["Pre-existing" if category == "Manual" else "This run"])
             self.tree.addTopLevelItem(parent)
             parent.setExpanded(True)
             for kind, objects in [
@@ -254,49 +201,43 @@ class AnnotationEditor(QtWidgets.QWidget):
                     item = QtWidgets.QTreeWidgetItem([obj.name, label])
                     item.setData(0, QtCore.Qt.ItemDataRole.UserRole, (kind, i))
                     parent.addChild(item)
+                    if (kind, i) in self.selections:
+                        item.setSelected(True)
                     if (kind, i) == self.selection:
-                        self.tree.setCurrentItem(item)
+                        self.tree.setCurrentItem(item, 0, QtCore.QItemSelectionModel.SelectionFlag.NoUpdate)
         self.tree.blockSignals(False)
-        if self.selection:
-            kind, index = self.selection
-            objects = getattr(
-                w.dataset.scene,
-                {
-                    "surface": "surfaces",
-                    "contour": "contours",
-                    "measurement": "measurements",
-                }[kind],
-            )
-            if index >= len(objects):
-                self.selection = None
         view.selected = self.selection
+        view.selected_objects = self.selections.copy()
         if w.volume_view and w._volume_dataset is w.dataset:
             camera = w.volume_view.plotter.camera_position
             w.volume_view.set_dataset(w.dataset)
             w.volume_view.plotter.camera_position = camera
             w.volume_view.selected = self.selection
+            w.volume_view.selected_objects = self.selections.copy()
         self.visibility()
         self.coordinates()
         self.undo_button.setEnabled(self.document.undo.canUndo())
         w.excel_button.setEnabled(not w.loading and not w.running)
         self.update_tables()
+        self.update_controls()
 
     def update_tables(self):
         w = self.window
         report = self.document.report()
         w.distances.blockSignals(True)
+        w.counts.blockSignals(True)
         w.distances.setRowCount(0)
         w.counts.setRowCount(0)
         for source, points in [
-            ("Manual", report["manual_measurements"]["points"]),
-            ("Program", report["points"]),
+            ("Pre-existing", report["manual_measurements"]["points"]),
+            ("This run", report["points"]),
         ]:
             for p in points:
                 row = w.distances.rowCount()
                 w.distances.insertRow(row)
                 values = [
-                    source + " · " + p["signal_id"],
-                    p.get("cell_id"),
+                    source + " · " + p.get("signal_name", p["signal_id"]),
+                    p.get("cell_name", p.get("cell_id")),
                     p["channel"] + 1 if p["channel"] is not None else "",
                     p.get("distance_um"),
                     p.get("score"),
@@ -315,12 +256,25 @@ class AnnotationEditor(QtWidgets.QWidget):
                     if j == 0:
                         item.setData(
                             QtCore.Qt.ItemDataRole.UserRole,
-                            dict(p, annotation_name=p["signal_id"]),
+                            p,
                         )
                     w.distances.setItem(row, j, item)
+        for pair in report['signal_pairs']:
+            row = w.distances.rowCount()
+            w.distances.insertRow(row)
+            values = [f"Signal pair · {pair['signal_name_a']} ↔ {pair['signal_name_b']}",
+                      pair['cell_name'], f"{pair['channel_a'] + 1} ↔ {pair['channel_b'] + 1}",
+                      pair['distance_um'], '', *pair['xyz_a'], *pair['xyz_b'], 'Signal ↔ signal']
+            for j, value in enumerate(values):
+                item = QtWidgets.QTableWidgetItem(f'{value:.4f}' if isinstance(value, float) else str(value))
+                if j == 0:
+                    item.setData(QtCore.Qt.ItemDataRole.UserRole, dict(
+                        annotation_id=pair['pair_id'], signal_id=pair['pair_id'], signal_name=values[0],
+                        cell_id=pair['cell_id'], xyz=pair['xyz_a'], border_xyz=pair['xyz_b'], distance_um=pair['distance_um']))
+                w.distances.setItem(row, j, item)
         for source, cells in [
-            ("Manual", report["manual_measurements"]["cells"]),
-            ("Program", report["cell_volumes"]),
+            ("Pre-existing", report["manual_measurements"]["cells"]),
+            ("This run", report["cell_volumes"]),
         ]:
             for cell in cells:
                 row = w.counts.rowCount()
@@ -335,7 +289,7 @@ class AnnotationEditor(QtWidgets.QWidget):
                 )
                 for j, value in enumerate(
                     [
-                        source + " · " + cell["cell_id"],
+                        source + " · " + cell.get("cell_name", cell["cell_id"]),
                         "",
                         "",
                         count,
@@ -353,7 +307,10 @@ class AnnotationEditor(QtWidgets.QWidget):
                             else str(value)
                         ),
                     )
+                    if j == 0:
+                        w.counts.item(row, j).setData(QtCore.Qt.ItemDataRole.UserRole, cell['cell_id'])
         w.distances.blockSignals(False)
+        w.counts.blockSignals(False)
         w.update_results_overview(report)
 
     def visibility(self):
@@ -372,27 +329,54 @@ class AnnotationEditor(QtWidgets.QWidget):
                 )
         self.window.refresh_annotations()
 
+    def select_annotation(self, selection):
+        self.set_selection({selection}, selection, reveal=True)
+
     def select(self, item, previous=None):
-        self.selection = item.data(0, QtCore.Qt.ItemDataRole.UserRole) if item else None
-        self.window.slice_view.selected = self.selection
-        if self.window.volume_view:
-            self.window.volume_view.selected = self.selection
-        self.coordinates()
-        self.window.refresh_annotations()
+        selection = item.data(0, QtCore.Qt.ItemDataRole.UserRole) if item else None
+        self.set_selection({selection} if selection else set(), selection, reveal=True)
+
+    def reveal_selected_annotation(self):
+        obj = self.annotation_object(self.selection)
+        if obj is None or self.window.mode.currentIndex() != 0:
+            return
+        kind, index = self.selection
+        view = self.window.slice_view
+        if kind == 'surface':
+            target = view.visible_slice_for_surface(index)
+        elif kind == 'measurement':
+            measurement = obj
+            if not measurement.visible or not (view.markers_visible or view.lines_visible and measurement.edges):
+                return
+            signal = self.document.signal_index(measurement)
+            if signal is None:
+                signal = next((i for i, time in enumerate(measurement.times)
+                               if measurement.all_times or time == self.window.dataset.time), None)
+            if signal is None or not (measurement.all_times or measurement.times[signal] == self.window.dataset.time):
+                return
+            target = view.visible_slice_for_point(measurement.points[signal])
+        else:
+            return
+        if target is not None:
+            self.window.slice.setValue(target)
+
+    def annotation_object(self, selection):
+        """Resolve only objects in the currently active document and dataset."""
+        if (selection is None or self.document is None
+                or self.document.dataset is not self.window.dataset):
+            return None
+        kind, index = selection
+        name = {'surface': 'surfaces', 'contour': 'contours', 'measurement': 'measurements'}.get(kind)
+        if name is None:
+            return None
+        objects = getattr(self.document.dataset.scene, name)
+        return objects[index] if 0 <= index < len(objects) else None
 
     def points(self):
-        if not self.selection:
+        obj = self.annotation_object(self.selection)
+        if obj is None or getattr(obj, 'kind', None) == 'signal_pair':
             return np.empty((0, 3))
-        kind, index = self.selection
-        scene = self.window.dataset.scene
-        obj = getattr(
-            scene,
-            {
-                "surface": "surfaces",
-                "contour": "contours",
-                "measurement": "measurements",
-            }[kind],
-        )[index]
+        kind, _ = self.selection
         return (
             obj.vertices
             if kind == "surface"
@@ -407,29 +391,43 @@ class AnnotationEditor(QtWidgets.QWidget):
         self.vertex.setMaximum(max(1, len(points)))
         self.vertex.blockSignals(False)
         if len(points):
-            for spin, value in zip(self.xyz, points[self.vertex.value() - 1]):
+            xyz = self.active_point[1:] if self.active_point is not None else points[self.vertex.value() - 1]
+            for spin, value in zip(self.xyz, xyz):
                 spin.setValue(float(value))
 
     def draw_handles(self):
+        self.draw_draft()
+        if self.influence_item is not None and isValid(self.influence_item) and self.influence_item.scene() is not None:
+            self.influence_item.scene().removeItem(self.influence_item)
+        self.influence_item = None
+        if self.mode == 'proportional' and self.active_point is not None:
+            view = self.window.slice_view
+            axis = 2 - view.axis
+            point = np.asarray(self.active_point[1:])
+            squared = self.radius.value() ** 2 - (point[axis] - view.coordinate) ** 2
+            if squared > 0:
+                radius = np.sqrt(squared)
+                u, v = view.projection_axes
+                pen = QtGui.QPen(QtGui.QColor('#fff06a'), 1, QtCore.Qt.PenStyle.DashLine)
+                pen.setCosmetic(True)
+                self.influence_item = view.scene().addEllipse(float(point[u] - radius), float(point[v] - radius),
+                    float(2 * radius), float(2 * radius), pen)
+                self.influence_item.setZValue(8)
         for item in self.handles:
             if isValid(item) and item.scene() is not None:
                 item.scene().removeItem(item)
         self.handles = []
-        if not self.document or not self.edit.isChecked() or not self.selection:
+        if (not self.document or not self.edit.isChecked() or not self.selection or len(self.selections) != 1
+                or not (self.mode == 'select' or self.precise_active() or self.mode == 'move'
+                        or self.mode == 'add' and self.tool.currentIndex() == 1)):
             return
         view = self.window.slice_view
+        obj = self.annotation_object(self.selection)
+        if obj is None:
+            return
         points = self.points()
         axis = 2 - view.axis
         kind, index = self.selection
-        scene = self.window.dataset.scene
-        obj = getattr(
-            scene,
-            {
-                "surface": "surfaces",
-                "contour": "contours",
-                "measurement": "measurements",
-            }[kind],
-        )[index]
         if not obj.visible:
             return
         if kind != "measurement" and not view.surfaces_visible:
@@ -480,21 +478,34 @@ class AnnotationEditor(QtWidgets.QWidget):
 
     def perform(self, callback):
         if not self.document or self.window.running or self.window.loading:
-            return
+            return False
         try:
             callback()
-        except (ValueError, IndexError) as exc:
+            return True
+        except (ValueError, IndexError, RuntimeError) as exc:
+            self.changed()
             self.window.error(str(exc))
+            return False
 
-    def preview_point(self, selection, vertex, original, xyz):
+    def preview_point(self, selection, vertex, original, xyz, anchors=None):
+        obj = self.annotation_object(selection)
+        if obj is None:
+            return
         view = self.window.slice_view
         kind, index = selection
         if kind == "surface":
-            segments = view._cuts[(index, view.axis, view.index)].copy()
-            segments[np.linalg.norm(segments - original, axis=2) < 1e-6] = xyz
+            from .tools import deform_surface
+            anchors = anchors or [(2 - view.axis, *original)]
+            preview = deform_surface(self.document, obj, anchors,
+                                     np.asarray(xyz) - original,
+                                     self.radius.value() if self.mode == 'proportional' else None,
+                                     self.falloff.currentText().lower())
+            segments = slice_segments(mesh_for(preview), 2 - view.axis, view.coordinate)
         elif kind == "contour":
             points = self.points().copy()
-            points[vertex] = xyz
+            anchors = np.asarray([a[1:] for a in anchors]) if anchors else np.asarray([original])
+            ids = np.unique(np.argmin(np.linalg.norm(points[:, None] - anchors, axis=2), axis=0))
+            points[ids] += xyz - original
             segments = np.stack([points, np.roll(points, -1, axis=0)], axis=1)
         else:
             return
@@ -504,89 +515,46 @@ class AnnotationEditor(QtWidgets.QWidget):
             path.moveTo(float(a[u]), float(a[v]))
             path.lineTo(float(b[u]), float(b[v]))
         for item in view._overlays:
-            if item.data(0) == selection:
+            if (item.data(0) == selection or item.data(1) == selection) and isinstance(item, QtWidgets.QGraphicsPathItem):
                 item.setPath(path)
 
     def delete(self):
-        if self.selection:
-            selected = self.selection
-            self.selection = None
-            self.perform(lambda: self.document.delete(*selected))
+        if self.point_selection and self.single_contour():
+            self.delete_point()
+        else:
+            self.delete_objects()
 
     def delete_point(self):
-        if self.selection:
-            if self.selection[0] == "measurement":
-                self.delete()
-            else:
-                self.perform(
-                    lambda: self.document.delete_vertex(
-                        *self.selection, self.vertex.value() - 1
-                    )
-                )
+        if not self.selection:
+            return
+        if self.selection[0] == 'measurement':
+            self.delete_objects()
+        elif self.selection[0] == 'surface' and self.point_selection:
+            selected = list(self.point_selection)
+            self.perform(lambda: self.document.delete_section_points(self.selection[1], selected))
+            self.point_selection.clear()
+            self.active_point = None
+            self.window.refresh_annotations()
+        elif self.selection[0] == 'contour' and self.point_selection:
+            points = self.points()
+            ids = {int(np.argmin(np.linalg.norm(points - a[1:], axis=1))) for a in self.point_selection}
+            def change():
+                for index in sorted(ids, reverse=True):
+                    self.document.delete_vertex(*self.selection, index)
+            if self.perform(lambda: self.document.batch('Delete contour points', change)):
+                self.point_selection.clear()
+                self.active_point = None
+                self.window.refresh_annotations()
+        else:
+            self.perform(lambda: self.document.delete_vertex(*self.selection, self.vertex.value() - 1))
 
     def move_point(self, index, xyz):
         if self.selection:
             self.perform(lambda: self.document.move(*self.selection, index, xyz))
 
     def eventFilter(self, obj, event):
-        view = self.window.slice_view
-        if (
-            self.document
-            and not self.window.running
-            and not self.window.loading
-            and event.type() == QtCore.QEvent.Type.MouseButtonPress
-            and event.button() == QtCore.Qt.MouseButton.LeftButton
-        ):
-            pos = view.mapToScene(event.position().toPoint())
-            xyz = np.zeros(3)
-            u, v = view.projection_axes
-            xyz[u] = pos.x()
-            xyz[v] = pos.y()
-            xyz[2 - view.axis] = view.coordinate
-            position = event.position().toPoint()
-            handles = [
-                item for item in view.items(position) if isinstance(item, Handle)
-            ]
-            if handles:
-                # Expanded hit areas may overlap. Give the closest dot priority,
-                # rather than whichever handle happened to be drawn last.
-                def distance(item):
-                    delta = view.mapFromScene(item.scenePos()) - position
-                    return delta.x() ** 2 + delta.y() ** 2
-
-                closest = min(handles, key=distance)
-                for handle in self.handles:
-                    handle.setZValue(21 if handle is closest else 20)
-                view.setFocus()
-                return False
-            item = view.itemAt(position)
-            if self.edit.isChecked() and self.tool.currentIndex() == 2:
-                self.perform(
-                    lambda: self.document.add_signal(
-                        xyz, self.signal_channel.currentData()
-                    )
-                )
-                return True
-            if (
-                self.edit.isChecked()
-                and self.tool.currentIndex() == 1
-                and self.selection
-                and self.selection[0] != "measurement"
-            ):
-                self.perform(lambda: self.document.add_vertex(*self.selection, xyz))
-                return True
-            if item and item.data(0):
-                kind, index = item.data(0)
-                for top in range(self.tree.topLevelItemCount()):
-                    parent = self.tree.topLevelItem(top)
-                    for j in range(parent.childCount()):
-                        child = parent.child(j)
-                        if child.data(0, QtCore.Qt.ItemDataRole.UserRole) == (
-                            kind,
-                            index,
-                        ):
-                            self.tree.setCurrentItem(child)
-                            return True
+        if self.interaction_event(obj, event):
+            return True
         return super().eventFilter(obj, event)
 
     def export_scene(self):

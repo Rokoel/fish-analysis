@@ -97,7 +97,7 @@ def main(arguments=None):
             refinement=default_refinement_model(),
             stardist_proposals=True,
             consensus_model=default_proposal_model(),
-            roundness=0.72,
+            roundness=0.82,
             cell_channel=0,
             signal_channels=[1],
         )

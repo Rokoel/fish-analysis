@@ -169,10 +169,6 @@ def train(audit, cache, patches, output, config, device='auto', emit=lambda e:No
             initial=read_model(initial_model)
             for key in ('filters','depth'):
                 if initial['config'][key]!=getattr(config,key):raise ValueError('Initial boundary architecture differs: '+key)
-            if config.residual_correction and not initial['config'].get('residual_correction',False):
-                model.get_layer('frozen_contour').load_weights(Path(initial_model)/initial['checkpoint'])
-            else:
-                model.load_weights(Path(initial_model)/initial['checkpoint'])
             report['initial_model']=str(Path(initial_model).resolve())
             report['initial_checkpoint_sha256']=hashlib.sha256((Path(initial_model)/initial['checkpoint']).read_bytes()).hexdigest()
         optimizer=tf.keras.optimizers.Adam(config.learning_rate,clipnorm=5.)

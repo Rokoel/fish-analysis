@@ -1,70 +1,4 @@
 {
-  "cells": {
-    "source": "artifacts/balanced-fish/training/neural-train-20260918-151950-694838/model",
-    "sha256": {
-      "best.weights.h5": "9ac7817756cdd5f6ab2e81dfc07debed2cc0173a51a6fe56525746b72f02e686",
-      "thresholds.json": "04e978cbabd18fa0d20c1ffeb6b260353810010aee4a6e8f56c2538f53925e96",
-      "config.json": "b19c40a8e60784e38e84bc331d98e9a5728b2039e3750efd64f711e9f16c8335",
-      "fish-model.json": "69f3616a5f8ebd75dee0bb61ede72bf492a5d36c3c99282aec0fdd0428341e62"
-    }
-  },
-  "signals": {
-    "source": "artifacts/signal-fish/training/signal-train-20260919-020312-268747/model",
-    "sha256": {
-      "best.weights.h5": "5ce81cb5baa9bc7c3db98c4539ebf8b816bed978460919f9d3b469faa2a24b95",
-      "signal-model.json": "5453616c8bbda59a8760e14172f3df242f0429992367fa5d367ff8d546fa7bca"
-    }
-  },
-  "refinement-base": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/refinement-fish/selected-model",
-    "sha256": {
-      "best.weights.h5": "168e9b71547c28788dca193a7f091798a55dbf2b4f7047805dee2eb4485a9cb1",
-      "refinement-model.json": "6d1e8333967deadd88f5d8319cc43230a186892e88ef6c227a05bf8ef4841cbf"
-    }
-  },
-  "refinement": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/proposal-fish/selected-crop-model",
-    "sha256": {
-      "best.weights.h5": "2cf468428108f754c6822c118c0dada9cf0e59fe4a07385a03b510dbcd074419",
-      "refinement-model.json": "05e73d18da31bcc4e1401199e4f6fe444b4c3d7fa3786e7d2331d2084304111d"
-    }
-  },
-  "proposals": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/proposal-fish/selected-detector",
-    "sha256": {
-      "best.weights.h5": "2e7efd8d1bcd1c225ddde7ec465cf88724db2aac961173ec2587fcc51881eaf7",
-      "proposal-model.json": "c2036c32e6a587503ddebcf73838cec9361d1839c6dbf004c7680c5a985184de"
-    }
-  },
-  "signals-refreshed": {
-    "source": "artifacts/signal-refresh/calibrated/model",
-    "sha256": {
-      "best.weights.h5": "2863a82e404da63f1a21488ed87f51a9016e25a1ca6ca29e3fb635aba1e9a399",
-      "signal-model.json": "9a064dc41b08116e3a34fc68abfe73542adc745fe1623f4adb5650d6ba6cec52"
-    }
-  },
-  "signals-center-unet": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/signal-centers/unet-training/model",
-    "sha256": {
-      "best.pt": "6584d38a03ac6655c0725ad4550ff12930c33b62c36958ad92ac9f5e0224eae3",
-      "signal-model.json": "1509a66a65028785322e32f4fbbe7ca6d50fb40e54564c7e60cd752adfeae05d"
-    }
-  },
-  "signals-spotiflow": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/signal-centers/spotiflow-training-recovered/model",
-    "sha256": {
-      "best.pt": "06e3fe3777190463df80d8798fbad649de89a6b33339d51c5f2d8c4d5b49867d",
-      "config.yaml": "54040251afe02220d9af97390b7d5e74b9826fc1b1a5afee6edbdfe605b23d3b",
-      "signal-model.json": "1933f5e08126cf1229822a759dec9b5fe3b9606f1aca959f4baf77cd385ebacb"
-    }
-  },
-  "refinement-bias-candidate": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/contour-bias-20261009/surface-loss/boundary-train-20261009-025207-067847-of868_50/model",
-    "sha256": {
-      "best.weights.h5": "56eb05c07cc08c2cdedaad27aa0f75774dc3d114f166ea3e2040844b617731c2",
-      "refinement-model.json": "3620a857e2f7d650b70ba2136813db933f0b547c399b63d2c87ccf36bb398b8e"
-    }
-  },
   "cells-sensitive": {
     "source": "artifacts/full-fish/training/neural-train-20260915-033619-354714/model",
     "sha256": {
@@ -74,31 +8,25 @@
       "fish-model.json": "d808cf50fb672aeb9377626d90db792219cd4ebb80dbc5afb20661ec2a30ffdc"
     }
   },
-  "boundary-annotations": {
-    "source": "training_annotations (45 crops; acquisition-group-disjoint development and all-annotation refit)",
+  "proposals": {
+    "source": "/home/rokoel/Documents/cell-nn/artifacts/proposal-fish/selected-detector",
     "sha256": {
-      "boundary-model.json": "29bcf35a7a75801b0f1786948a05659debc24d096dd2a36d2158d88bc0a803fc",
-      "training-report.json": "14b561fa27082ecfad2d9fcc9985f85a85f3640a8c935b1d1c71c061a0f67a38",
-      "boundary.weights.h5": "26cc2fa81c3927c043f992d6978989ec4a114146f8e55696a94e320d89b6b3a7",
-      "development.weights.h5": "982b2c0a8c46fceb5d4be66f69a09786fa9f37f49103e0ffaa176e9fa315aa68"
+      "best.weights.h5": "2e7efd8d1bcd1c225ddde7ec465cf88724db2aac961173ec2587fcc51881eaf7",
+      "proposal-model.json": "c2036c32e6a587503ddebcf73838cec9361d1839c6dbf004c7680c5a985184de"
     }
   },
-  "cells-conservative": {
-    "source": "/home/rokoel/Documents/cell-nn/models/cells-conservative",
+  "refinement-bias-candidate": {
+    "source": "/home/rokoel/Documents/cell-nn/artifacts/contour-bias-20261009/surface-loss/boundary-train-20261009-025207-067847-of868_50/model",
     "sha256": {
-      "best.weights.h5": "3a10aa7ee0bd9e2e2c3d666dce9e61b4cf5676d92082275f7bab2a2159fb8db0",
-      "thresholds.json": "5a83f50784ebe6cc6c371b92b9171f3663f7486383e2b4a026df80a0d9d4ec78",
-      "config.json": "b19c40a8e60784e38e84bc331d98e9a5728b2039e3750efd64f711e9f16c8335",
-      "fish-model.json": "18556a8b75455ff0553354c596d07247388a89fb8ec6b81ae4d13d9f0e39a62e"
+      "best.weights.h5": "56eb05c07cc08c2cdedaad27aa0f75774dc3d114f166ea3e2040844b617731c2",
+      "refinement-model.json": "3620a857e2f7d650b70ba2136813db933f0b547c399b63d2c87ccf36bb398b8e"
     }
   },
-  "cells-preprocessed": {
-    "source": "/home/rokoel/Documents/cell-nn/models/cells-preprocessed",
+  "signals-center-unet": {
+    "source": "/home/rokoel/Documents/cell-nn/artifacts/signal-centers/unet-training/model",
     "sha256": {
-      "best.weights.h5": "4784fb9eb14c3c8c89e2ee49416524328f962f8a592f72fbcbc7101785811284",
-      "thresholds.json": "e39dbe9c219735c575e8123f030d0db2963d719c27092fcdc4326cab9bcb8280",
-      "config.json": "0e03bdffae5d1b6f0199aaa9dd80fa2d6b35cb9d59031d98b3167769ba77b3c7",
-      "fish-model.json": "7bf973367155509cd6291a4455fdcc2e960d3c66421e81c99a20f24381c2ca44"
+      "best.pt": "6584d38a03ac6655c0725ad4550ff12930c33b62c36958ad92ac9f5e0224eae3",
+      "signal-model.json": "1509a66a65028785322e32f4fbbe7ca6d50fb40e54564c7e60cd752adfeae05d"
     }
   },
   "cells-stardist2d": {

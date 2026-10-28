@@ -172,3 +172,47 @@ def test_redrawn_positive_network_output_on_blank_image_is_rejected():
     result,diagnostics=redraw_proposals(labels,prepared,HallucinatedCell(),config)
     assert not result.any()
     assert diagnostics[0]['rejection_reason']=='Insufficient visible membrane evidence'
+
+from fish_viewer.refinement.training import batch,validation_boundaries
+def test_surface_targets_follow_augmented_geometry_and_physical_spacing():
+    size=32
+    image=np.zeros((1,size,size,size),np.float32)
+    mask=np.zeros_like(image);mask[:,8:24,8:24,8:24]=1
+    arrays=dict(images=image,masks=mask,weights=np.ones_like(image),valid=np.ones_like(image))
+    records=[dict(seed_patch=[15.5]*3,patch_spacing_um=.2)]
+    config=replace(RefinementConfig(),patch_size=size,surface_loss_weight=.1,crop_scale_jitter=.1,crop_shift_um=.2)
+    _,y=batch(arrays,records,[0],config,np.random.default_rng(2),augment=True)
+    truth=y[0,...,0]>.5
+    expected=(ndi.distance_transform_edt(~truth,sampling=.2)-ndi.distance_transform_edt(truth,sampling=.2))/2
+    assert y.shape[-1]==4
+    assert np.allclose(y[0,...,3],np.clip(expected,-1,1))
+
+@pytest.mark.neural
+def test_surface_loss_and_asymmetric_loss_ignore_unknown_and_penalize_missing_voxels():
+    import tensorflow as tf
+    from fish_viewer.refinement.network import loss
+    truth=np.zeros((1,8,8,8,4),np.float32)
+    truth[...,1]=1;truth[:,2:6,2:6,2:6,2]=1
+    truth[:,2:6,2:6,2:6,0]=1;truth[...,3]=1;truth[...,3][truth[...,0]>0]=-1
+    logits=tf.Variable(tf.zeros((1,8,8,8,1)))
+    config=replace(RefinementConfig(),surface_loss_weight=.1,tversky_beta=.6)
+    with tf.GradientTape() as tape:value,_=loss(tf,tf.constant(truth),logits,config)
+    gradient=tape.gradient(value,logits).numpy()
+    assert not gradient[:,:2].any()
+    assert gradient[0,3,3,3,0]<0
+    # Shift logits inside marked target: covering it should lower the objective.
+    grown=np.zeros(logits.shape,np.float32);grown[:,2:6,2:6,2:6]=2
+    assert float(loss(tf,truth,grown,config)[0])<float(value)
+
+def test_validation_boundary_scores_empty_prediction_as_failure():
+    truth=np.zeros((1,16,16,16,4),np.float32);truth[:,4:12,4:12,4:12,0]=1;truth[...,2]=1
+    record=[dict(seed_patch=[8,8,8],patch_spacing_um=.2)]
+    config=RefinementConfig()
+    good=validation_boundaries(truth[...,0:1],truth,[0],record,config)[0]
+    bad=validation_boundaries(np.zeros((1,16,16,16,1)),truth,[0],record,config)[0]
+    assert good==(0.,0.,0.)
+    assert bad[0]>1 and bad[1]==100
+
+def test_invalid_new_loss_config_is_rejected():
+    with pytest.raises(ValueError):replace(RefinementConfig(),tversky_beta=.9).validate()
+    with pytest.raises(ValueError):replace(RefinementConfig(),surface_loss_weight=-.1).validate()

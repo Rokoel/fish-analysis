@@ -1,7 +1,6 @@
 """A focused scan → cells → signals → A/B distances → Imaris desktop app."""
 import json
 from pathlib import Path
-import re
 import time
 
 import numpy as np
@@ -13,6 +12,7 @@ from ..reader import ImarisReader, entry_for_path, load_dataset, scan_library
 from ..channel_hints import membrane_stain_channels
 from ..signals.overlays import read_signals
 from ..views import SliceView, VolumeView
+from ..display import auto_adjust
 from ..runtime_profile import configure_device_selector
 from .controller import AnalysisController, default_models, default_refinement_model, default_proposal_model, migrate_bundled_defaults, sensitive_stardist_model, STAGES
 
@@ -37,12 +37,14 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.controller.failed.connect(self.failed)
         self.controller.cancelled.connect(self.cancelled)
         self.documents = {}
+        self._document_key = None
         self.dataset = None
         self.result_path = None
         self.result_report = None
         self.volume_view = None
         self.channel_dialog = None
         self.full_detail = False
+        self.interpolation = self.settings.value('display_interpolation', True, type=bool)
         self.loading = False
         self.running = False
         self._generation = 0
@@ -118,29 +120,12 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.signal_model = QtWidgets.QLineEdit(str(signals))
         self.boundary_model = QtWidgets.QLineEdit('')
         self.boundary_model.setPlaceholderText('Optional 3D U-Net model folder')
-        self.membrane_snap = QtWidgets.QCheckBox()
-        self.learned_boundary = QtWidgets.QCheckBox()
-        self.cell_recovery = QtWidgets.QCheckBox()
-        self.stardist_proposals = QtWidgets.QCheckBox()
-        self.consensus_cells = QtWidgets.QCheckBox()
-        self.learned_boundary_model = Path(__file__).resolve().parents[2] / 'models/boundary-annotations'
-        self.membrane_shift = QtWidgets.QDoubleSpinBox()
-        self.membrane_shift.setValue(.3)
         self.pipeline = QtWidgets.QComboBox()
         self.pipeline.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.pipeline.setMinimumContentsLength(12)
         self.pipeline.setMinimumWidth(0)
         self.pipeline.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,QtWidgets.QSizePolicy.Policy.Fixed)
-        for label, key in (
-            ('Fine-tuned StarDist 2D', 'stardist2d'),
-            ('Conservative StarDist', 'conservative'),
-            ('Balanced StarDist (first release cells)', 'balanced'),
-            ('Preprocessed StarDist (experimental)', 'preprocessed'),
-            ('Center/box + surface-loss contours', 'crop'),
-            ('Sensitive StarDist + surface-loss contours', 'hybrid'),
-            ('Both-detector consensus (default)', 'consensus'),
-            ('Signals first + center/box + contours (experimental)', 'signal-first'),
-        ):
+        for label, key in (('Both-detector consensus (default)', 'consensus'), ('Fine-tuned StarDist 2D', 'stardist2d')):
             self.pipeline.addItem(label, key)
         self.pipeline.setToolTip('Each pipeline uses its current bundled models and the signal-center U-Net. No training is performed.')
         form.addRow('Pipeline', self.pipeline)
@@ -149,14 +134,24 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.pipeline.setCurrentIndex(max(0, selected))
         self.select_pipeline()
         self.roundness = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
-        self.roundness.setRange(0, 100)
-        self.roundness.setValue(int(self.settings.value('minimum_roundness_percent', 72)))
-        self.roundness.setToolTip('Minimum physical 3D sphericity. Higher values reject less round cells; 0 disables this check. Accepted contours are not reshaped.')
+        self.roundness.setRange(75, 100)
+        saved_roundness = int(self.settings.value('minimum_roundness_percent', 82))
+        self.roundness.setValue(saved_roundness if saved_roundness >= 75 else 82)
+        self.roundness.setToolTip('Minimum physical 3D sphericity (75–100%). Higher values reject less round cells. Accepted contours are not reshaped.')
         self.roundness_value = QtWidgets.QLabel()
-        self.roundness.valueChanged.connect(lambda v: self.roundness_value.setText('Off' if v == 0 else f'{v/100:.2f}'))
-        self.roundness_value.setText('Off' if self.roundness.value() == 0 else f'{self.roundness.value()/100:.2f}')
+        self.roundness.valueChanged.connect(lambda v: self.roundness_value.setText(f'{v}%'))
+        self.roundness_value.setText(f'{self.roundness.value()}%')
         row = QtWidgets.QHBoxLayout(); row.addWidget(self.roundness, 1); row.addWidget(self.roundness_value)
         form.addRow('Minimum roundness', row)
+        self.pair_distance = QtWidgets.QDoubleSpinBox()
+        self.pair_distance.setRange(.001, 10000.)
+        self.pair_distance.setDecimals(3)
+        self.pair_distance.setSingleStep(.1)
+        self.pair_distance.setSuffix(' µm')
+        self.pair_distance.setValue(float(self.settings.value('signal_pair_max_distance_um', 1.)))
+        self.pair_distance.setToolTip('Within each cell and time point, pair closest signals once per channel pair. Omit pairs farther apart than this limit.')
+        self.pair_distance.valueChanged.connect(self.pairing_changed)
+        form.addRow('Signal-pair limit', self.pair_distance)
         self.device = QtWidgets.QComboBox()
         configure_device_selector(self.device, self.settings.value('device', 'auto'))
         form.addRow('Device', self.device)
@@ -191,7 +186,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         left.addWidget(self.stage_progress)
         self.elapsed = QtWidgets.QLabel('')
         left.addWidget(self.elapsed)
-        self.summary = QtWidgets.QLabel('Results are saved automatically as Imaris files, CSV tables and an Excel workbook with cell volumes and distances.')
+        self.summary = QtWidgets.QLabel('Results are saved as an annotated Imaris image and Excel workbook with cell volumes and distances.')
         self.summary.setWordWrap(True)
         left.addWidget(self.summary)
         self.saved_button = self._button('Open saved analysis…', self.open_saved, left)
@@ -226,6 +221,12 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         row.addWidget(self.mode)
         self.fit_button = self._button('Fit', self.fit_view, row)
         self.channels_button = self._button('Channels…', self.show_channels, row)
+        self.auto_display_button = self._button('Auto display', self.auto_display, row)
+        self.smooth_display = QtWidgets.QCheckBox('Smooth')
+        self.smooth_display.setToolTip('Interpolate image display: bilinear in 2D and trilinear in 3D.')
+        self.smooth_display.setChecked(self.interpolation)
+        self.smooth_display.toggled.connect(self.set_interpolation)
+        row.addWidget(self.smooth_display)
         row.addStretch()
         self.show_cells, self.show_points, self.show_lines = [QtWidgets.QCheckBox(name) for name in ('Cells', 'A/B', 'Lines')]
         for box in (self.show_cells, self.show_points, self.show_lines):
@@ -235,6 +236,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         image_layout.addLayout(row)
         self.views = QtWidgets.QStackedWidget()
         self.slice_view = SliceView()
+        self.slice_view.set_interpolation(self.interpolation)
         self.slice_view.stepped.connect(lambda delta: self.slice.setValue(self.slice.value()+delta))
         self.views.addWidget(self.slice_view)
         image_layout.addWidget(self.views, 1)
@@ -264,15 +266,19 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.annotation_dock = QtWidgets.QDockWidget('Annotations and editing', self)
         self.annotation_dock.setWidget(annotation_panel)
         self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self.annotation_dock)
-        annotation_toggle = QtWidgets.QToolButton()
-        annotation_toggle.setDefaultAction(self.annotation_dock.toggleViewAction())
-        image_layout.itemAt(0).layout().insertWidget(3, annotation_toggle)
+        self.annotation_dock.hide()
+        image_layout.insertWidget(1, self.editor.toolbar)
+        annotation_toggle = self.annotation_dock.toggleViewAction()
+        annotation_toggle.setText('Annotations')
+        self.editor.toolbar.addAction(annotation_toggle)
         self.distances = self._table(['Signal', 'Cell', 'Channel', 'Distance (µm)', 'Score',
                                       'A X', 'A Y', 'A Z', 'B X', 'B Y', 'B Z', 'Note'])
         self.distances.itemSelectionChanged.connect(self.focus_measurement)
         self.distances.itemDoubleClicked.connect(lambda _: self.tabs.setCurrentIndex(0))
         self.tabs.addTab(self.distances, 'Distances')
         self.counts = self._table(['Cell', 'Channel', 'Channel name', 'Signals', 'Volume (µm³)'])
+        self.counts.itemSelectionChanged.connect(self.focus_cell)
+        self.counts.itemDoubleClicked.connect(lambda _: self.tabs.setCurrentIndex(0))
         self.tabs.addTab(self.counts, 'Cell counts')
         overview = QtWidgets.QWidget()
         overview_layout = QtWidgets.QVBoxLayout(overview)
@@ -315,7 +321,9 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.cancel_button.setEnabled(self.running)
         self.results_button.setEnabled(self.result_path is not None)
         self.excel_button.setEnabled(self.dataset is not None and not self.loading and not self.running)
-        self.editor.setEnabled(self.dataset is not None and not self.loading and not self.running)
+        self.editor.setEnabled(editable)
+        self.editor.toolbar.setEnabled(editable)
+        self.auto_display_button.setEnabled(editable)
         for widget in (self.roles_button, self.channels_button, self.fit_button, self.mode, self.axis, self.slice):
             widget.setEnabled(self.dataset is not None and not self.running and not self.loading)
 
@@ -369,8 +377,8 @@ class AnalysisWindow(QtWidgets.QMainWindow):
     def update_results_overview(self, report):
         sections = []
         for name, points, cells in (
-            ('Program', report.get('points', []), report.get('cell_volumes', [])),
-            ('Manual', report.get('manual_measurements', {}).get('points', []), report.get('manual_measurements', {}).get('cells', [])),
+            ('This run', report.get('points', []), report.get('cell_volumes', [])),
+            ('Pre-existing', report.get('manual_measurements', {}).get('points', []), report.get('manual_measurements', {}).get('cells', [])),
         ):
             distances = [p['distance_um'] for p in points if p.get('distance_um') is not None and np.isfinite(p['distance_um'])]
             text = f'{name}: {len(cells)} cells · {len(points)} signals · {len(distances)} measured distances'
@@ -378,6 +386,9 @@ class AnalysisWindow(QtWidgets.QMainWindow):
                 text += f'\nA → B distance (µm): median {np.median(distances):.4f}; mean {np.mean(distances):.4f}; range {min(distances):.4f}–{max(distances):.4f}'
             sections.append(text)
         filtering = report.get('signal_filter', {})
+        if report.get('signal_pairs'):
+            sections.append(f"{len(report['signal_pairs'])} signal-to-signal pairs within "
+                            f"{report['signal_pairing']['maximum_distance_um']:g} µm.")
         if 'removed_cell_count' in filtering:
             sections.append(f'{filtering["removed_cell_count"]} cells without signals removed.')
         if self.result_path:
@@ -481,28 +492,19 @@ class AnalysisWindow(QtWidgets.QMainWindow):
             if result_path:
                 manifest = json.loads(Path(result_path).read_text(encoding='utf-8'))
                 root = Path(result_path).parent
-                dataset = load_dataset(LibraryEntry(root / manifest['image'], root / manifest['scene']))
+                dataset = load_dataset(LibraryEntry(root / manifest['image'], root / manifest['scene'] if manifest.get('scene') else None))
                 _, report = read_signals(root / manifest['signal_report'])
-                source = Path(manifest.get('source', ''))
-                if source.is_file() and not any(s.source=='manual' for s in dataset.scene.surfaces) and not any(m.source=='manual' for m in dataset.scene.measurements):
-                    source_scene=manifest.get('source_scene')
-                    original = load_dataset(LibraryEntry(source,Path(source_scene)) if source_scene else entry_for_path(source))
-                    dataset.scene.surfaces[:0] = original.scene.surfaces
-                    dataset.scene.measurements[:0] = original.scene.measurements
-                    dataset.scene.contours[:0] = original.scene.contours
-                annotations = (root / manifest['image']).with_suffix('.annotations.json')
-                if annotations.is_file():
-                    saved = json.loads(annotations.read_text(encoding='utf-8'))
-                    if 'manual_measurements' in saved:
-                        report['manual_measurements'] = saved['manual_measurements']
+                from ..annotation_state import activate_run, annotation_report
+                saved = annotation_report(dataset)
+                activate_run(dataset.scene, manifest.get('annotation_run_id') or saved.get('annotation_run_id'))
+                for key in ('manual_measurements', 'signal_pairing'):
+                    if key in saved:
+                        report[key] = saved[key]
             else:
                 dataset = load_dataset(entry_for_path(image))
                 report = None
             for channel, volume in zip(dataset.metadata.channels, dataset.volumes):
-                sample = volume.ravel()[::max(1, volume.size // 1_000_000)]
-                low, high = np.percentile(sample, [1, 99.8])
-                if high > low:
-                    channel.low, channel.high = float(low), float(high)
+                auto_adjust(channel, volume)
             return dataset, report
         def done(value):
             if generation != self._generation:
@@ -522,16 +524,23 @@ class AnalysisWindow(QtWidgets.QMainWindow):
                 self.error(message)
         self.background(read, done, failed)
 
+    @staticmethod
+    def document_key(dataset):
+        active_run = next((obj.run_id for objects in (dataset.scene.surfaces, dataset.scene.measurements)
+                           for obj in objects if obj.source != 'manual' and obj.run_id), None)
+        return (str(dataset.metadata.path), str(dataset.scene.source or dataset.metadata.path), active_run)
+
     def set_dataset(self, dataset, report=None):
-        if report and 'cell_volumes' not in report:
-            from ..workflow.volumes import add_cell_volumes
-            add_cell_volumes(report, dataset.scene.surfaces)
+        # Slice/axis updates emit redraws immediately. Old selections and queued
+        # gestures must be detached before any view sees the replacement scene.
+        self.editor.reset_interaction()
         if self.editor.document is not None and self.dataset is not None:
-            self.documents[str(self.dataset.metadata.path)] = self.editor.document
+            self.documents[self._document_key] = self.editor.document
             from dataclasses import replace
             # Keep annotations/undo, not every full scan volume in memory.
             self.editor.document.dataset = replace(self.dataset, volumes=[])
-        cached=self.documents.get(str(dataset.metadata.path))
+        self._document_key = self.document_key(dataset)
+        cached=self.documents.get(self._document_key)
         if cached is not None:
             dataset.scene=cached.dataset.scene
         self.dataset, self.result_report = dataset, report
@@ -604,41 +613,17 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.settings.setValue('pipeline', self.pipeline.currentData())
         self.settings.setValue('minimum_roundness_percent', self.roundness.value())
         self.settings.setValue('device', self.device.currentData())
-        self.settings.setValue('membrane_snap', self.membrane_snap.isChecked())
-        self.settings.setValue('learned_boundary', self.learned_boundary.isChecked())
-        self.settings.setValue('membrane_shift_um', self.membrane_shift.value())
-        self.settings.setValue('cell_recovery', self.cell_recovery.isChecked())
-        self.settings.setValue('stardist_proposals', self.stardist_proposals.isChecked())
-        self.settings.setValue('consensus_cells', self.consensus_cells.isChecked())
+
         self.sync_buttons()
         self.next_scan()
 
     def select_pipeline(self, *_):
-        self.use_conservative_cells()
-        self.signal_model.setText(str(default_models()[1]))
         key = self.pipeline.currentData()
         root = Path(__file__).resolve().parents[2] / 'models'
-        if key == 'preprocessed':
-            self.cell_model.setText(str(root / 'cells-preprocessed'))
-        elif key == 'stardist2d':
-            self.cell_model.setText(str(root / 'cells-stardist2d'))
-        elif key == 'balanced':
-            self.cell_model.setText(str(root / 'cells'))
-        elif key in ('crop', 'signal-first'):
-            self.cell_model.setText(default_proposal_model())
-            self.boundary_model.setText(default_refinement_model())
-        elif key in ('hybrid', 'consensus'):
-            self.cell_model.setText(sensitive_stardist_model())
-            self.boundary_model.setText(default_refinement_model())
-            self.stardist_proposals.setChecked(True)
-            self.consensus_cells.setChecked(key == 'consensus')
+        self.cell_model.setText(str(root / ('cells-stardist2d' if key == 'stardist2d' else 'cells-sensitive')))
+        self.signal_model.setText(str(default_models()[1]))
+        self.boundary_model.setText(default_refinement_model() if key == 'consensus' else '')
 
-    def use_conservative_cells(self):
-        self.cell_model.setText(str(Path(__file__).resolve().parents[2] / 'models/cells-conservative'))
-        self.boundary_model.clear()
-        for checkbox in (self.membrane_snap, self.learned_boundary, self.cell_recovery,
-                         self.stardist_proposals, self.consensus_cells):
-            checkbox.setChecked(False)
 
     def next_scan(self):
         if not self.queue:
@@ -658,13 +643,9 @@ class AnalysisWindow(QtWidgets.QMainWindow):
             roles=self.channel_roles.get(str(Path(self.active_image).resolve()),{})
             self.controller.start(self.active_image, self.output.text(), self.cell_model.text(),
                                   self.signal_model.text(), self.device.currentData(), self.boundary_model.text().strip() or None,
-                                  membrane_snap=dict(max_shift_um=self.membrane_shift.value()) if self.membrane_snap.isChecked() or self.learned_boundary.isChecked() else None,
-                                  boundary_guidance=self.learned_boundary_model if self.learned_boundary.isChecked() else None,
-                                  recovery={} if self.cell_recovery.isChecked() else None,
-                                  stardist_proposals=self.stardist_proposals.isChecked(),
-                                  consensus_model=default_proposal_model() if self.consensus_cells.isChecked() else None,
                                   roundness=self.roundness.value()/100,
-                                  signal_first=self.pipeline.currentData() == 'signal-first',
+                                  maximum_pair_distance=self.pair_distance.value(),
+                                  pipeline=self.pipeline.currentData(),
                                   cell_channel=roles.get('cell'),signal_channels=roles.get('signals'),source_scene=item.data(QtCore.Qt.ItemDataRole.UserRole).get('scene'))
         except Exception as exc:
             self.failed(str(exc))
@@ -755,6 +736,11 @@ class AnalysisWindow(QtWidgets.QMainWindow):
             except Exception as exc:
                 self.error(str(exc))
 
+    def pairing_changed(self, value):
+        self.settings.setValue('signal_pair_max_distance_um', value)
+        if hasattr(self, 'editor') and self.editor.document:
+            self.editor.document.set_pairing_distance(value)
+
     def open_result_folder(self):
         if self.result_path:
             QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.result_path.parent / 'export')))
@@ -783,6 +769,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
             if self.volume_view is None:
                 self.volume_view = VolumeView(off_screen=self.off_screen)
                 self.volume_view.full_detail = self.full_detail
+                self.volume_view.interpolation = self.interpolation
                 self.views.addWidget(self.volume_view)
             if self._volume_dataset is not self.dataset:
                 self.volume_view.set_dataset(self.dataset)
@@ -868,6 +855,23 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.channel_dialog = dialog
         dialog.show()
 
+    def auto_display(self):
+        if self.dataset is None:
+            return
+        for channel, volume in zip(self.dataset.metadata.channels, self.dataset.volumes):
+            auto_adjust(channel, volume)
+        if self.channel_dialog:
+            for panel in self.channel_dialog.findChildren(ChannelPanel):
+                panel.sync()
+        self.refresh_images()
+
+    def set_interpolation(self, enabled):
+        self.interpolation = bool(enabled)
+        self.settings.setValue('display_interpolation', self.interpolation)
+        self.slice_view.set_interpolation(self.interpolation)
+        if self.volume_view:
+            self.volume_view.set_interpolation(self.interpolation)
+
     def refresh_images(self):
         if self.dataset is not None:
             self.slice_view.update_image()
@@ -890,6 +894,15 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         if self.dataset is not None:
             (self.volume_view if self.mode.currentIndex() else self.slice_view).fit()
 
+    def focus_cell(self):
+        item = self.counts.item(self.counts.currentRow(), 0)
+        if item is None or self.dataset is None:
+            return
+        uid = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        index = next((i for i, surface in enumerate(self.dataset.scene.surfaces) if surface.uid == uid), None)
+        if index is not None:
+            self.editor.select_annotation(('surface', index))
+
     def focus_measurement(self):
         row = self.distances.currentRow()
         if row < 0 or self.dataset is None:
@@ -898,16 +911,17 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         if not point:
             return
         index = next((i for i, m in enumerate(self.dataset.scene.measurements)
-                      if m.name == point.get('annotation_name') or re.match(rf'Signal {re.escape(str(point["signal_id"]))}(?:;|\s)', m.name)), None)
+                      if m.uid == point.get('annotation_id')), None)
         if index is None:
             return
         self.slice_view.selected = ('measurement', index)
+        self.editor.select_annotation(('measurement', index))
         if self.volume_view:
             self.volume_view.selected = ('measurement', index)
         xyz = np.asarray(point['xyz'])
         axis = 2-self.slice_view.axis
         self.slice.setValue(int(round((xyz[axis]-self.dataset.center_origin[axis])/self.dataset.spacing[axis])))
-        surface = next((s for s in self.dataset.scene.surfaces if s.name.startswith(f'Predicted cell {point["cell_id"]} -')), None)
+        surface = next((s for s in self.dataset.scene.surfaces if s.uid == point.get('cell_id')), None)
         coordinates = surface.vertices if surface is not None else np.asarray([point['xyz'], point.get('border_xyz', point['xyz'])])
         low, high = coordinates.min(0)-.8, coordinates.max(0)+.8
         u, v = self.slice_view.projection_axes
@@ -915,7 +929,8 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         if self.volume_view and self._volume_dataset is self.dataset:
             self.volume_view.plotter.reset_camera(bounds=tuple(v for lo, hi in zip(low, high) for v in (lo, hi)))
         distance=point.get('distance_um')
-        self.selection_info.setText(f'{point["signal_id"]} · A → B: {distance:.4f} µm' if distance is not None else str(point['signal_id']))
+        label = point.get('signal_name', point['signal_id'])
+        self.selection_info.setText(f'{label} · A → B: {distance:.4f} µm' if distance is not None else str(label))
         self.refresh_annotations()
 
     def error(self, message):

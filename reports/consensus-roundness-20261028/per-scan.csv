@@ -1,0 +1,356 @@
+image,scan,group,split,references,complete_references,cells_before_filter,final_cells,signals,matched_before_filter,matched_final,unscored_before_filter,unscored_final,manual_A_points,minimum_roundness,cell_channel,matched_complete_before_filter,matched_complete_final
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546a.ims,160712_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0002,test,9,7,31,22,23,6,5,25,17,9,0.5,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546a.ims,160712_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0002,test,9,7,31,22,23,6,5,25,17,9,0.75,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546a.ims,160712_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0002,test,9,7,26,19,20,4,4,22,15,9,0.8,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546a.ims,160712_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0002,test,9,7,23,16,16,4,4,19,12,9,0.82,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546a.ims,160712_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0002,test,9,7,14,11,11,3,3,11,8,9,0.85,1,3,3
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546b.ims,160712_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0002,test,11,10,37,17,18,9,8,28,9,11,0.5,1,8,7
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546b.ims,160712_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0002,test,11,10,37,17,18,9,8,28,9,11,0.75,1,8,7
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546b.ims,160712_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0002,test,11,10,32,16,17,9,8,23,8,11,0.8,1,8,7
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546b.ims,160712_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0002,test,11,10,25,12,13,6,5,19,7,11,0.82,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546b.ims,160712_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0002,test,11,10,8,4,4,2,2,6,2,11,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546c.ims,160712_dsHDAC3_Lam633m_22A546c.ims,acquisition-component-0002,test,11,4,27,12,12,8,5,19,7,11,0.5,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546c.ims,160712_dsHDAC3_Lam633m_22A546c.ims,acquisition-component-0002,test,11,4,26,12,12,7,5,19,7,11,0.75,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546c.ims,160712_dsHDAC3_Lam633m_22A546c.ims,acquisition-component-0002,test,11,4,18,9,9,4,4,14,5,11,0.8,1,3,3
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546c.ims,160712_dsHDAC3_Lam633m_22A546c.ims,acquisition-component-0002,test,11,4,13,6,6,4,4,9,2,11,0.82,1,3,3
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546c.ims,160712_dsHDAC3_Lam633m_22A546c.ims,acquisition-component-0002,test,11,4,6,3,3,3,3,3,0,11,0.85,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546d.ims,160712_dsHDAC3_Lam633m_22A546d.ims,acquisition-component-0002,test,13,8,32,15,15,8,6,24,9,13,0.5,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546d.ims,160712_dsHDAC3_Lam633m_22A546d.ims,acquisition-component-0002,test,13,8,31,15,15,7,6,24,9,13,0.75,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546d.ims,160712_dsHDAC3_Lam633m_22A546d.ims,acquisition-component-0002,test,13,8,22,12,12,6,5,16,7,13,0.8,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546d.ims,160712_dsHDAC3_Lam633m_22A546d.ims,acquisition-component-0002,test,13,8,15,7,7,4,3,11,4,13,0.82,1,3,2
+/home/rokoel/Documents/cell-nn/FISH/22A_dsHDAC3_07.2012/160712_dsHDAC3_Lam633m_22A546d.ims,160712_dsHDAC3_Lam633m_22A546d.ims,acquisition-component-0002,test,13,8,5,3,3,1,1,4,2,13,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,acquisition-component-0004,test,10,9,104,25,29,7,2,97,23,10,0.5,2,7,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,acquisition-component-0004,test,10,9,103,25,29,7,2,96,23,10,0.75,2,7,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,acquisition-component-0004,test,10,9,87,19,22,7,2,80,17,10,0.8,2,7,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,acquisition-component-0004,test,10,9,57,8,8,5,1,52,7,10,0.82,2,5,1
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,131212_3ab3ad_Lam633m_dsRed543_CG488a.ims,acquisition-component-0004,test,10,9,12,2,2,2,1,10,1,10,0.85,2,2,1
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,acquisition-component-0004,test,10,5,77,22,25,6,4,71,18,11,0.5,2,3,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,acquisition-component-0004,test,10,5,77,22,25,6,4,71,18,11,0.75,2,3,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,acquisition-component-0004,test,10,5,67,18,21,5,3,62,15,11,0.8,2,3,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,acquisition-component-0004,test,10,5,45,11,13,4,3,41,8,11,0.82,2,3,2
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,131212_3ab3ad_Lam633m_dsRed543_CG488b.ims,acquisition-component-0004,test,10,5,6,2,2,0,0,6,2,11,0.85,2,0,0
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,acquisition-component-0004,test,0,0,39,14,16,0,0,39,14,0,0.5,2,0,0
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,acquisition-component-0004,test,0,0,39,14,16,0,0,39,14,0,0.75,2,0,0
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,acquisition-component-0004,test,0,0,37,14,16,0,0,37,14,0,0.8,2,0,0
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,acquisition-component-0004,test,0,0,29,9,10,0,0,29,9,0,0.82,2,0,0
+/home/rokoel/Documents/cell-nn/FISH/3abx3ad_101212/131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,131212_3ab3ad_Lam633m_dsRed543_CG488c.ims,acquisition-component-0004,test,0,0,8,2,2,0,0,8,2,0,0.85,2,0,0
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546a.ims,040612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0018,test,7,5,49,21,22,6,6,43,15,7,0.5,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546a.ims,040612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0018,test,7,5,48,21,22,6,6,42,15,7,0.75,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546a.ims,040612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0018,test,7,5,42,17,18,5,5,37,12,7,0.8,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546a.ims,040612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0018,test,7,5,40,16,17,5,5,35,11,7,0.82,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546a.ims,040612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0018,test,7,5,22,8,8,4,4,18,4,7,0.85,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546c.ims,040612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0018,test,10,8,70,19,19,9,6,61,13,10,0.5,1,8,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546c.ims,040612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0018,test,10,8,69,19,19,9,6,60,13,10,0.75,1,8,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546c.ims,040612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0018,test,10,8,61,15,15,8,5,53,10,10,0.8,1,7,5
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546c.ims,040612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0018,test,10,8,52,13,13,7,4,45,9,10,0.82,1,6,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546c.ims,040612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0018,test,10,8,26,9,9,6,3,20,6,10,0.85,1,5,3
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546d.ims,040612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0018,test,6,5,63,20,20,6,5,57,15,6,0.5,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546d.ims,040612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0018,test,6,5,63,20,20,6,5,57,15,6,0.75,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546d.ims,040612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0018,test,6,5,59,19,19,5,4,54,15,6,0.8,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546d.ims,040612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0018,test,6,5,51,17,17,3,3,48,14,6,0.82,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546d.ims,040612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0018,test,6,5,27,8,8,2,2,25,6,6,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546e.ims,040612_HAG50-2_Lam633m_K9546e.ims,acquisition-component-0018,test,9,9,73,24,24,9,8,64,16,9,0.5,1,9,8
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546e.ims,040612_HAG50-2_Lam633m_K9546e.ims,acquisition-component-0018,test,9,9,73,24,24,9,8,64,16,9,0.75,1,9,8
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546e.ims,040612_HAG50-2_Lam633m_K9546e.ims,acquisition-component-0018,test,9,9,66,21,21,8,7,58,14,9,0.8,1,8,7
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546e.ims,040612_HAG50-2_Lam633m_K9546e.ims,acquisition-component-0018,test,9,9,55,18,18,7,6,48,12,9,0.82,1,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/040612_HAG50-2_Lam633m_K9546e.ims,040612_HAG50-2_Lam633m_K9546e.ims,acquisition-component-0018,test,9,9,20,7,7,0,0,20,7,9,0.85,1,0,0
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546a.ims,170612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0024,test,9,8,31,17,17,8,7,23,10,9,0.5,1,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546a.ims,170612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0024,test,9,8,31,17,17,8,7,23,10,9,0.75,1,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546a.ims,170612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0024,test,9,8,29,16,16,7,7,22,9,9,0.8,1,6,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546a.ims,170612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0024,test,9,8,26,15,15,6,6,20,9,9,0.82,1,6,6
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546a.ims,170612_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0024,test,9,8,17,11,11,5,5,12,6,9,0.85,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546b.ims,170612_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0024,test,4,4,18,11,11,4,4,14,7,4,0.5,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546b.ims,170612_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0024,test,4,4,18,11,11,4,4,14,7,4,0.75,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546b.ims,170612_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0024,test,4,4,18,11,11,4,4,14,7,4,0.8,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546b.ims,170612_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0024,test,4,4,14,9,9,4,4,10,5,4,0.82,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546b.ims,170612_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0024,test,4,4,9,6,6,2,2,7,4,4,0.85,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546c.ims,170612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0024,test,4,2,29,17,17,3,2,26,15,4,0.5,1,2,1
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546c.ims,170612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0024,test,4,2,29,17,17,3,2,26,15,4,0.75,1,2,1
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546c.ims,170612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0024,test,4,2,26,15,15,3,2,23,13,4,0.8,1,2,1
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546c.ims,170612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0024,test,4,2,22,13,13,3,2,19,11,4,0.82,1,2,1
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546c.ims,170612_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0024,test,4,2,11,5,5,2,1,9,4,4,0.85,1,1,0
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546d.ims,170612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0024,test,3,2,23,15,16,3,3,20,12,3,0.5,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546d.ims,170612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0024,test,3,2,23,15,16,3,3,20,12,3,0.75,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546d.ims,170612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0024,test,3,2,23,15,16,3,3,20,12,3,0.8,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546d.ims,170612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0024,test,3,2,22,14,15,3,3,19,11,3,0.82,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG 60D-mt4/new_HAG_60D/170612_HAG50-2_Lam633m_K9546d.ims,170612_HAG50-2_Lam633m_K9546d.ims,acquisition-component-0024,test,3,2,13,8,9,1,1,12,7,3,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488a.ims,031213_MT4_Lam633_22A488a.ims,acquisition-component-0025,test,10,9,58,28,31,8,7,50,21,10,0.5,0,8,7
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488a.ims,031213_MT4_Lam633_22A488a.ims,acquisition-component-0025,test,10,9,57,27,30,7,6,50,21,10,0.75,0,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488a.ims,031213_MT4_Lam633_22A488a.ims,acquisition-component-0025,test,10,9,49,21,24,7,6,42,15,10,0.8,0,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488a.ims,031213_MT4_Lam633_22A488a.ims,acquisition-component-0025,test,10,9,41,18,21,6,5,35,13,10,0.82,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488a.ims,031213_MT4_Lam633_22A488a.ims,acquisition-component-0025,test,10,9,21,13,14,4,4,17,9,10,0.85,0,4,4
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488b.ims,031213_MT4_Lam633_22A488b.ims,acquisition-component-0025,test,10,8,77,31,35,9,6,68,25,10,0.5,0,8,6
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488b.ims,031213_MT4_Lam633_22A488b.ims,acquisition-component-0025,test,10,8,74,30,34,8,6,66,24,10,0.75,0,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488b.ims,031213_MT4_Lam633_22A488b.ims,acquisition-component-0025,test,10,8,66,26,30,7,5,59,21,10,0.8,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488b.ims,031213_MT4_Lam633_22A488b.ims,acquisition-component-0025,test,10,8,52,17,20,6,4,46,13,10,0.82,0,5,4
+/home/rokoel/Documents/cell-nn/FISH/HAG4 22A 2nd/031213_MT4_Lam633_22A488b.ims,031213_MT4_Lam633_22A488b.ims,acquisition-component-0025,test,10,8,31,8,10,2,1,29,7,10,0.85,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546a.ims,130212_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0038,test,11,10,82,22,22,10,6,72,16,11,0.5,1,10,6
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546a.ims,130212_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0038,test,11,10,79,22,22,9,6,70,16,11,0.75,1,9,6
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546a.ims,130212_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0038,test,11,10,65,16,16,6,3,59,13,11,0.8,1,6,3
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546a.ims,130212_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0038,test,11,10,46,11,11,2,0,44,11,11,0.82,1,2,0
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546a.ims,130212_HAG50-2_Lam633m_K9546a.ims,acquisition-component-0038,test,11,10,22,8,8,0,0,22,8,11,0.85,1,0,0
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546b.ims,130212_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0038,test,9,7,66,22,22,9,8,57,14,9,0.5,1,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546b.ims,130212_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0038,test,9,7,66,22,22,9,8,57,14,9,0.75,1,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546b.ims,130212_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0038,test,9,7,62,20,20,9,8,53,12,9,0.8,1,7,6
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546b.ims,130212_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0038,test,9,7,56,19,19,8,8,48,11,9,0.82,1,6,6
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546b.ims,130212_HAG50-2_Lam633m_K9546b.ims,acquisition-component-0038,test,9,7,26,9,9,3,3,23,6,9,0.85,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546c.ims,130212_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0038,test,11,11,101,35,35,11,10,90,25,11,0.5,1,11,10
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546c.ims,130212_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0038,test,11,11,99,35,35,11,10,88,25,11,0.75,1,11,10
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546c.ims,130212_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0038,test,11,11,82,30,30,9,8,73,22,11,0.8,1,9,8
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546c.ims,130212_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0038,test,11,11,69,28,28,9,8,60,20,11,0.82,1,9,8
+/home/rokoel/Documents/cell-nn/FISH/HAG50-2_02/130212_HAG50-2_Lam633m_K9546c.ims,130212_HAG50-2_Lam633m_K9546c.ims,acquisition-component-0038,test,11,11,31,15,15,5,5,26,10,11,0.85,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546a.ims,270712_dsHDAC1_Lam633m_22A546a.ims,acquisition-component-0039,test,7,6,57,22,23,6,4,51,18,7,0.5,1,5,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546a.ims,270712_dsHDAC1_Lam633m_22A546a.ims,acquisition-component-0039,test,7,6,57,22,23,6,4,51,18,7,0.75,1,5,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546a.ims,270712_dsHDAC1_Lam633m_22A546a.ims,acquisition-component-0039,test,7,6,40,16,17,5,3,35,13,7,0.8,1,4,2
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546a.ims,270712_dsHDAC1_Lam633m_22A546a.ims,acquisition-component-0039,test,7,6,25,10,10,4,3,21,7,7,0.82,1,3,2
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546a.ims,270712_dsHDAC1_Lam633m_22A546a.ims,acquisition-component-0039,test,7,6,7,4,4,2,2,5,2,7,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546b.ims,270712_dsHDAC1_Lam633m_22A546b.ims,acquisition-component-0039,test,10,10,27,11,11,8,5,19,6,10,0.5,1,8,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546b.ims,270712_dsHDAC1_Lam633m_22A546b.ims,acquisition-component-0039,test,10,10,26,11,11,8,5,18,6,10,0.75,1,8,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546b.ims,270712_dsHDAC1_Lam633m_22A546b.ims,acquisition-component-0039,test,10,10,22,9,9,7,4,15,5,10,0.8,1,7,4
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546b.ims,270712_dsHDAC1_Lam633m_22A546b.ims,acquisition-component-0039,test,10,10,15,3,3,4,1,11,2,10,0.82,1,4,1
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546b.ims,270712_dsHDAC1_Lam633m_22A546b.ims,acquisition-component-0039,test,10,10,6,1,1,1,1,5,0,10,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546c.ims,270712_dsHDAC1_Lam633m_22A546c.ims,acquisition-component-0039,test,10,7,34,19,20,6,5,28,14,10,0.5,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546c.ims,270712_dsHDAC1_Lam633m_22A546c.ims,acquisition-component-0039,test,10,7,33,19,20,6,5,27,14,10,0.75,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546c.ims,270712_dsHDAC1_Lam633m_22A546c.ims,acquisition-component-0039,test,10,7,25,13,14,5,4,20,9,10,0.8,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546c.ims,270712_dsHDAC1_Lam633m_22A546c.ims,acquisition-component-0039,test,10,7,20,11,12,4,4,16,7,10,0.82,1,3,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546c.ims,270712_dsHDAC1_Lam633m_22A546c.ims,acquisition-component-0039,test,10,7,14,8,9,2,2,12,6,10,0.85,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546d.ims,270712_dsHDAC1_Lam633m_22A546d.ims,acquisition-component-0039,test,10,8,34,13,14,9,7,25,6,10,0.5,1,8,7
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546d.ims,270712_dsHDAC1_Lam633m_22A546d.ims,acquisition-component-0039,test,10,8,34,13,14,9,7,25,6,10,0.75,1,8,7
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546d.ims,270712_dsHDAC1_Lam633m_22A546d.ims,acquisition-component-0039,test,10,8,28,11,12,8,7,20,4,10,0.8,1,7,7
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546d.ims,270712_dsHDAC1_Lam633m_22A546d.ims,acquisition-component-0039,test,10,8,25,8,9,6,5,19,3,10,0.82,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546d.ims,270712_dsHDAC1_Lam633m_22A546d.ims,acquisition-component-0039,test,10,8,13,3,3,3,2,10,1,10,0.85,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546e.ims,270712_dsHDAC1_Lam633m_22A546e.ims,acquisition-component-0039,test,5,4,31,17,19,4,3,27,14,5,0.5,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546e.ims,270712_dsHDAC1_Lam633m_22A546e.ims,acquisition-component-0039,test,5,4,31,17,19,4,3,27,14,5,0.75,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546e.ims,270712_dsHDAC1_Lam633m_22A546e.ims,acquisition-component-0039,test,5,4,29,17,19,4,3,25,14,5,0.8,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546e.ims,270712_dsHDAC1_Lam633m_22A546e.ims,acquisition-component-0039,test,5,4,25,14,16,4,3,21,11,5,0.82,1,4,3
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546e.ims,270712_dsHDAC1_Lam633m_22A546e.ims,acquisition-component-0039,test,5,4,12,5,7,2,1,10,4,5,0.85,1,2,1
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546f.ims,270712_dsHDAC1_Lam633m_22A546f.ims,acquisition-component-0039,test,8,7,35,17,18,6,5,29,12,8,0.5,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546f.ims,270712_dsHDAC1_Lam633m_22A546f.ims,acquisition-component-0039,test,8,7,35,17,18,6,5,29,12,8,0.75,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546f.ims,270712_dsHDAC1_Lam633m_22A546f.ims,acquisition-component-0039,test,8,7,32,17,18,6,5,26,12,8,0.8,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546f.ims,270712_dsHDAC1_Lam633m_22A546f.ims,acquisition-component-0039,test,8,7,23,12,12,5,4,18,8,8,0.82,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/HDAC1-22-07.12/270712_dsHDAC1_Lam633m_22A546f.ims,270712_dsHDAC1_Lam633m_22A546f.ims,acquisition-component-0039,test,8,7,11,7,7,3,2,8,5,8,0.85,1,3,2
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546a.ims,050512_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0050,test,10,8,77,34,36,10,7,67,27,10,0.5,1,8,5
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546a.ims,050512_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0050,test,10,8,77,34,36,10,7,67,27,10,0.75,1,8,5
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546a.ims,050512_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0050,test,10,8,66,27,28,8,6,58,21,10,0.8,1,6,4
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546a.ims,050512_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0050,test,10,8,49,21,22,8,6,41,15,10,0.82,1,6,4
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546a.ims,050512_dsHDAC3_Lam633m_22A546a.ims,acquisition-component-0050,test,10,8,20,7,7,3,1,17,6,10,0.85,1,3,1
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546b.ims,050512_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0050,test,10,10,82,30,30,10,7,72,23,10,0.5,1,10,7
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546b.ims,050512_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0050,test,10,10,80,29,29,10,7,70,22,10,0.75,1,10,7
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546b.ims,050512_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0050,test,10,10,60,23,23,8,6,52,17,10,0.8,1,8,6
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546b.ims,050512_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0050,test,10,10,40,13,13,4,2,36,11,10,0.82,1,4,2
+/home/rokoel/Documents/cell-nn/FISH/S2_dsHDAC3_22A/050512_dsHDAC3_Lam633m_22A546b.ims,050512_dsHDAC3_Lam633m_22A546b.ims,acquisition-component-0050,test,10,10,11,3,3,0,0,11,3,10,0.85,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543.ims,acquisition-component-0051,test,10,10,28,10,11,7,6,21,4,10,0.5,1,7,6
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543.ims,acquisition-component-0051,test,10,10,28,10,11,7,6,21,4,10,0.75,1,7,6
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543.ims,acquisition-component-0051,test,10,10,24,10,11,7,6,17,4,10,0.8,1,7,6
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543.ims,acquisition-component-0051,test,10,10,15,7,8,4,4,11,3,10,0.82,1,4,4
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543.ims,acquisition-component-0051,test,10,10,6,2,2,1,1,5,1,10,0.85,1,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims,acquisition-component-0051,test,14,13,45,19,19,10,5,35,14,14,0.5,1,9,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims,acquisition-component-0051,test,14,13,45,19,19,10,5,35,14,14,0.75,1,9,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims,acquisition-component-0051,test,14,13,38,15,15,8,5,30,10,14,0.8,1,8,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims,acquisition-component-0051,test,14,13,24,8,8,2,2,22,6,14,0.82,1,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_2.ims,acquisition-component-0051,test,14,13,6,2,2,0,0,6,2,14,0.85,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims,acquisition-component-0051,test,11,9,22,15,16,9,9,13,6,11,0.5,1,8,8
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims,acquisition-component-0051,test,11,9,22,15,16,9,9,13,6,11,0.75,1,8,8
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims,acquisition-component-0051,test,11,9,21,15,16,9,9,12,6,11,0.8,1,8,8
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims,acquisition-component-0051,test,11,9,20,14,15,9,9,11,5,11,0.82,1,8,8
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_3.ims,acquisition-component-0051,test,11,9,13,10,11,7,7,6,3,11,0.85,1,6,6
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,acquisition-component-0051,test,9,8,27,15,17,7,5,20,10,9,0.5,1,6,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,acquisition-component-0051,test,9,8,27,15,17,7,5,20,10,9,0.75,1,6,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,acquisition-component-0051,test,9,8,24,14,16,7,5,17,9,9,0.8,1,6,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,acquisition-component-0051,test,9,8,20,12,14,6,5,14,7,9,0.82,1,5,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims",12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,acquisition-component-0051,test,9,8,7,2,2,2,1,5,1,9,0.85,1,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims,acquisition-component-0051,test,12,7,35,22,27,6,3,29,19,12,0.5,3,4,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims,acquisition-component-0051,test,12,7,34,22,27,6,3,28,19,12,0.75,3,4,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims,acquisition-component-0051,test,12,7,17,8,11,2,0,15,8,12,0.8,3,2,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims,acquisition-component-0051,test,12,7,10,6,8,2,0,8,6,12,0.82,3,2,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_2.ims,acquisition-component-0051,test,12,7,2,1,1,0,0,2,1,12,0.85,3,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims,acquisition-component-0051,test,13,8,24,13,14,8,8,16,5,13,0.5,3,7,7
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims,acquisition-component-0051,test,13,8,24,13,14,8,8,16,5,13,0.75,3,7,7
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims,acquisition-component-0051,test,13,8,13,8,8,4,4,9,4,13,0.8,3,3,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims,acquisition-component-0051,test,13,8,6,3,3,2,2,4,1,13,0.82,3,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_3.ims,acquisition-component-0051,test,13,8,1,1,1,1,1,0,0,13,0.85,3,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims,acquisition-component-0051,test,10,9,38,18,22,9,7,29,11,10,0.5,1,9,7
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims,acquisition-component-0051,test,10,9,37,17,19,8,6,29,11,10,0.75,1,8,6
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims,acquisition-component-0051,test,10,9,27,11,12,5,4,22,7,10,0.8,1,5,4
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims,acquisition-component-0051,test,10,9,21,10,11,5,4,16,6,10,0.82,1,5,4
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_4.ims,acquisition-component-0051,test,10,9,4,3,3,1,1,3,2,10,0.85,1,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims,acquisition-component-0051,test,10,7,16,12,17,4,4,12,8,10,0.5,3,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims,acquisition-component-0051,test,10,7,16,12,17,4,4,12,8,10,0.75,3,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims,acquisition-component-0051,test,10,7,11,9,13,4,4,7,5,10,0.8,3,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims,acquisition-component-0051,test,10,7,11,9,13,4,4,7,5,10,0.82,3,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims",8042013_dsELYS-K9_ELYS405_Lam488_LBR633_Fit543_5.ims,acquisition-component-0051,test,10,7,7,5,7,1,1,6,4,10,0.85,3,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims,acquisition-component-0051,test,5,3,21,9,11,4,3,17,6,5,0.5,1,3,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims,acquisition-component-0051,test,5,3,21,9,11,4,3,17,6,5,0.75,1,3,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims,acquisition-component-0051,test,5,3,21,9,11,4,3,17,6,5,0.8,1,3,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims,acquisition-component-0051,test,5,3,17,8,9,3,2,14,6,5,0.82,1,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543.ims,acquisition-component-0051,test,5,3,5,2,2,2,1,3,1,5,0.85,1,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims,acquisition-component-0051,test,3,1,13,6,6,2,2,11,4,3,0.5,1,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims,acquisition-component-0051,test,3,1,13,6,6,2,2,11,4,3,0.75,1,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims,acquisition-component-0051,test,3,1,12,5,5,1,1,11,4,3,0.8,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims,acquisition-component-0051,test,3,1,10,3,3,1,1,9,2,3,0.82,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_2.ims,acquisition-component-0051,test,3,1,3,2,2,1,1,2,1,3,0.85,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims,acquisition-component-0051,test,5,4,12,8,8,1,1,11,7,5,0.5,3,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims,acquisition-component-0051,test,5,4,12,8,8,1,1,11,7,5,0.75,3,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims,acquisition-component-0051,test,5,4,10,6,6,1,1,9,5,5,0.8,3,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims,acquisition-component-0051,test,5,4,9,5,5,1,1,8,4,5,0.82,3,1,1
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims",9042013_dsELYS+dsLam-K9_ELYS405_Lam488_LBR633_Fits543_3.ims,acquisition-component-0051,test,5,4,4,1,1,0,0,4,1,5,0.85,3,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims,acquisition-component-0051,test,12,10,28,10,12,6,6,22,4,12,0.5,1,5,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims,acquisition-component-0051,test,12,10,28,10,12,6,6,22,4,12,0.75,1,5,5
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims,acquisition-component-0051,test,12,10,17,5,6,4,4,13,1,12,0.8,1,3,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims,acquisition-component-0051,test,12,10,8,3,4,2,2,6,1,12,0.82,1,2,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_4.ims,acquisition-component-0051,test,12,10,1,1,1,0,0,1,1,12,0.85,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims,acquisition-component-0051,test,13,12,28,14,15,9,7,19,7,13,0.5,1,9,7
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims,acquisition-component-0051,test,13,12,28,14,15,9,7,19,7,13,0.75,1,9,7
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims,acquisition-component-0051,test,13,12,19,7,7,4,3,15,4,13,0.8,1,4,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims,acquisition-component-0051,test,13,12,13,5,5,4,3,9,2,13,0.82,1,4,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_5.ims,acquisition-component-0051,test,13,12,1,0,0,0,0,1,0,13,0.85,1,0,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims,acquisition-component-0051,test,12,7,32,18,18,8,5,24,13,12,0.5,1,6,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims,acquisition-component-0051,test,12,7,31,18,18,8,5,23,13,12,0.75,1,6,3
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims,acquisition-component-0051,test,12,7,19,10,10,6,4,13,6,12,0.8,1,4,2
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims,acquisition-component-0051,test,12,7,11,6,6,3,2,8,4,12,0.82,1,1,0
+"/home/rokoel/Documents/cell-nn/FISH/S2_dsLacZ, dsELYS, dsLamin_FISH k9_05.04.2013/9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims",9042013_dsELYS+dsLam-K9_Lam488_LBR633_Fits543_6.ims,acquisition-component-0051,test,12,7,2,1,1,1,1,1,0,12,0.85,1,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_g.ims,dsNup133_K9546_Lam488_g.ims,acquisition-component-0059,test,8,6,25,13,13,8,6,17,7,8,0.5,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_g.ims,dsNup133_K9546_Lam488_g.ims,acquisition-component-0059,test,8,6,25,13,13,8,6,17,7,8,0.75,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_g.ims,dsNup133_K9546_Lam488_g.ims,acquisition-component-0059,test,8,6,21,11,11,7,5,14,6,8,0.8,0,5,4
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_g.ims,dsNup133_K9546_Lam488_g.ims,acquisition-component-0059,test,8,6,15,9,9,5,3,10,6,8,0.82,0,4,3
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_g.ims,dsNup133_K9546_Lam488_g.ims,acquisition-component-0059,test,8,6,2,1,1,1,0,1,1,8,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_h.ims,dsNup133_K9546_Lam488_h.ims,acquisition-component-0059,test,10,6,58,23,23,8,8,50,15,10,0.5,0,5,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_h.ims,dsNup133_K9546_Lam488_h.ims,acquisition-component-0059,test,10,6,47,17,17,5,5,42,12,10,0.75,0,3,3
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_h.ims,dsNup133_K9546_Lam488_h.ims,acquisition-component-0059,test,10,6,30,13,13,4,4,26,9,10,0.8,0,2,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_h.ims,dsNup133_K9546_Lam488_h.ims,acquisition-component-0059,test,10,6,20,10,10,3,3,17,7,10,0.82,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_h.ims,dsNup133_K9546_Lam488_h.ims,acquisition-component-0059,test,10,6,4,2,2,1,1,3,1,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_i.ims,dsNup133_K9546_Lam488_i.ims,acquisition-component-0059,test,7,7,26,11,11,7,6,19,5,7,0.5,0,7,6
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_i.ims,dsNup133_K9546_Lam488_i.ims,acquisition-component-0059,test,7,7,25,10,10,7,6,18,4,7,0.75,0,7,6
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_i.ims,dsNup133_K9546_Lam488_i.ims,acquisition-component-0059,test,7,7,16,5,5,3,2,13,3,7,0.8,0,3,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_i.ims,dsNup133_K9546_Lam488_i.ims,acquisition-component-0059,test,7,7,9,0,0,0,0,9,0,7,0.82,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_i.ims,dsNup133_K9546_Lam488_i.ims,acquisition-component-0059,test,7,7,0,0,0,0,0,0,0,7,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_j.ims,dsNup133_K9546_Lam488_j.ims,acquisition-component-0059,test,12,10,28,12,12,8,8,20,4,12,0.5,0,8,8
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_j.ims,dsNup133_K9546_Lam488_j.ims,acquisition-component-0059,test,12,10,25,12,12,8,8,17,4,12,0.75,0,8,8
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_j.ims,dsNup133_K9546_Lam488_j.ims,acquisition-component-0059,test,12,10,18,10,10,7,7,11,3,12,0.8,0,7,7
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_j.ims,dsNup133_K9546_Lam488_j.ims,acquisition-component-0059,test,12,10,15,7,7,6,6,9,1,12,0.82,0,6,6
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_j.ims,dsNup133_K9546_Lam488_j.ims,acquisition-component-0059,test,12,10,2,1,1,1,1,1,0,12,0.85,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_k.ims,dsNup133_K9546_Lam488_k.ims,acquisition-component-0059,test,5,3,27,10,10,3,0,24,10,6,0.5,0,2,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_k.ims,dsNup133_K9546_Lam488_k.ims,acquisition-component-0059,test,5,3,26,9,9,3,0,23,9,6,0.75,0,2,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_k.ims,dsNup133_K9546_Lam488_k.ims,acquisition-component-0059,test,5,3,22,8,8,2,0,20,8,6,0.8,0,2,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_k.ims,dsNup133_K9546_Lam488_k.ims,acquisition-component-0059,test,5,3,18,7,7,2,0,16,7,6,0.82,0,2,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_K9546_Lam488_k.ims,dsNup133_K9546_Lam488_k.ims,acquisition-component-0059,test,5,3,2,0,0,0,0,2,0,6,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_a.ims,dsNup133_Lam488_K9546_a.ims,acquisition-component-0059,test,13,12,31,9,9,13,8,18,1,13,0.5,0,12,7
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_a.ims,dsNup133_Lam488_K9546_a.ims,acquisition-component-0059,test,13,12,29,9,9,13,8,16,1,13,0.75,0,12,7
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_a.ims,dsNup133_Lam488_K9546_a.ims,acquisition-component-0059,test,13,12,23,7,7,9,6,14,1,13,0.8,0,8,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_a.ims,dsNup133_Lam488_K9546_a.ims,acquisition-component-0059,test,13,12,16,4,4,6,4,10,0,13,0.82,0,5,3
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_a.ims,dsNup133_Lam488_K9546_a.ims,acquisition-component-0059,test,13,12,0,0,0,0,0,0,0,13,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_b.ims,dsNup133_Lam488_K9546_b.ims,acquisition-component-0059,test,10,9,38,11,11,9,7,29,4,10,0.5,0,9,7
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_b.ims,dsNup133_Lam488_K9546_b.ims,acquisition-component-0059,test,10,9,32,9,9,6,5,26,4,10,0.75,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_b.ims,dsNup133_Lam488_K9546_b.ims,acquisition-component-0059,test,10,9,16,5,5,4,4,12,1,10,0.8,0,4,4
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_b.ims,dsNup133_Lam488_K9546_b.ims,acquisition-component-0059,test,10,9,10,2,2,1,1,9,1,10,0.82,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_b.ims,dsNup133_Lam488_K9546_b.ims,acquisition-component-0059,test,10,9,0,0,0,0,0,0,0,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_c.ims,dsNup133_Lam488_K9546_c.ims,acquisition-component-0059,test,5,5,33,5,5,5,2,28,3,5,0.5,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_c.ims,dsNup133_Lam488_K9546_c.ims,acquisition-component-0059,test,5,5,32,5,5,5,2,27,3,5,0.75,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_c.ims,dsNup133_Lam488_K9546_c.ims,acquisition-component-0059,test,5,5,22,2,2,3,1,19,1,5,0.8,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_c.ims,dsNup133_Lam488_K9546_c.ims,acquisition-component-0059,test,5,5,16,2,2,2,1,14,1,5,0.82,0,2,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_c.ims,dsNup133_Lam488_K9546_c.ims,acquisition-component-0059,test,5,5,0,0,0,0,0,0,0,5,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_d.ims,dsNup133_Lam488_K9546_d.ims,acquisition-component-0059,test,10,8,20,7,7,10,6,10,1,10,0.5,0,8,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_d.ims,dsNup133_Lam488_K9546_d.ims,acquisition-component-0059,test,10,8,20,7,7,10,6,10,1,10,0.75,0,8,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_d.ims,dsNup133_Lam488_K9546_d.ims,acquisition-component-0059,test,10,8,17,7,7,8,6,9,1,10,0.8,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_d.ims,dsNup133_Lam488_K9546_d.ims,acquisition-component-0059,test,10,8,16,7,7,8,6,8,1,10,0.82,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_d.ims,dsNup133_Lam488_K9546_d.ims,acquisition-component-0059,test,10,8,3,0,0,1,0,2,0,10,0.85,0,1,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_e.ims,dsNup133_Lam488_K9546_e.ims,acquisition-component-0059,test,7,7,28,7,7,6,2,22,5,8,0.5,0,6,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_e.ims,dsNup133_Lam488_K9546_e.ims,acquisition-component-0059,test,7,7,25,6,6,6,2,19,4,8,0.75,0,6,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_e.ims,dsNup133_Lam488_K9546_e.ims,acquisition-component-0059,test,7,7,17,6,6,4,2,13,4,8,0.8,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_e.ims,dsNup133_Lam488_K9546_e.ims,acquisition-component-0059,test,7,7,10,4,4,3,1,7,3,8,0.82,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_e.ims,dsNup133_Lam488_K9546_e.ims,acquisition-component-0059,test,7,7,0,0,0,0,0,0,0,8,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_f.ims,dsNup133_Lam488_K9546_f.ims,acquisition-component-0059,test,11,7,45,12,12,9,6,36,6,11,0.5,0,7,6
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_f.ims,dsNup133_Lam488_K9546_f.ims,acquisition-component-0059,test,11,7,39,11,11,8,5,31,6,11,0.75,0,6,5
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_f.ims,dsNup133_Lam488_K9546_f.ims,acquisition-component-0059,test,11,7,22,5,5,6,3,16,2,11,0.8,0,4,3
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_f.ims,dsNup133_Lam488_K9546_f.ims,acquisition-component-0059,test,11,7,14,1,1,3,1,11,0,11,0.82,0,2,1
+/home/rokoel/Documents/cell-nn/FISH/dsNup133/dsNup133_Lam488_K9546_f.ims,dsNup133_Lam488_K9546_f.ims,acquisition-component-0059,test,11,7,1,0,0,1,0,0,0,11,0.85,0,1,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 3rd/230913_line8_Lam633m_22A488a.ims,230913_line8_Lam633m_22A488a.ims,acquisition-component-0063,test,10,5,172,62,62,4,1,168,61,10,0.5,0,3,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 3rd/230913_line8_Lam633m_22A488a.ims,230913_line8_Lam633m_22A488a.ims,acquisition-component-0063,test,10,5,172,62,62,4,1,168,61,10,0.75,0,3,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 3rd/230913_line8_Lam633m_22A488a.ims,230913_line8_Lam633m_22A488a.ims,acquisition-component-0063,test,10,5,162,60,60,4,1,158,59,10,0.8,0,3,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 3rd/230913_line8_Lam633m_22A488a.ims,230913_line8_Lam633m_22A488a.ims,acquisition-component-0063,test,10,5,129,53,53,4,1,125,52,10,0.82,0,3,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 3rd/230913_line8_Lam633m_22A488a.ims,230913_line8_Lam633m_22A488a.ims,acquisition-component-0063,test,10,5,39,16,16,3,1,36,15,10,0.85,0,2,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488a.ims,051213_line8_Lam633m_22A488a.ims,acquisition-component-0068,test,10,8,177,53,53,4,2,173,51,10,0.5,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488a.ims,051213_line8_Lam633m_22A488a.ims,acquisition-component-0068,test,10,8,176,53,53,3,2,173,51,10,0.75,0,3,2
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488a.ims,051213_line8_Lam633m_22A488a.ims,acquisition-component-0068,test,10,8,165,49,49,1,0,164,49,10,0.8,0,1,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488a.ims,051213_line8_Lam633m_22A488a.ims,acquisition-component-0068,test,10,8,137,42,42,1,0,136,42,10,0.82,0,1,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488a.ims,051213_line8_Lam633m_22A488a.ims,acquisition-component-0068,test,10,8,28,8,8,0,0,28,8,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488b.ims,051213_line8_Lam633m_22A488b.ims,acquisition-component-0068,test,10,9,154,40,40,6,4,148,36,10,0.5,0,6,4
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488b.ims,051213_line8_Lam633m_22A488b.ims,acquisition-component-0068,test,10,9,154,40,40,6,4,148,36,10,0.75,0,6,4
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488b.ims,051213_line8_Lam633m_22A488b.ims,acquisition-component-0068,test,10,9,151,40,40,5,4,146,36,10,0.8,0,5,4
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488b.ims,051213_line8_Lam633m_22A488b.ims,acquisition-component-0068,test,10,9,140,39,39,5,4,135,35,10,0.82,0,5,4
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488b.ims,051213_line8_Lam633m_22A488b.ims,acquisition-component-0068,test,10,9,66,17,17,2,1,64,16,10,0.85,0,2,1
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488c.ims,051213_line8_Lam633m_22A488c.ims,acquisition-component-0068,test,10,7,161,55,55,4,4,157,51,10,0.5,0,3,3
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488c.ims,051213_line8_Lam633m_22A488c.ims,acquisition-component-0068,test,10,7,161,55,55,4,4,157,51,10,0.75,0,3,3
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488c.ims,051213_line8_Lam633m_22A488c.ims,acquisition-component-0068,test,10,7,154,52,52,4,4,150,48,10,0.8,0,3,3
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488c.ims,051213_line8_Lam633m_22A488c.ims,acquisition-component-0068,test,10,7,130,44,44,4,4,126,40,10,0.82,0,3,3
+/home/rokoel/Documents/cell-nn/FISH/line8 22A 5th/051213_line8_Lam633m_22A488c.ims,051213_line8_Lam633m_22A488c.ims,acquisition-component-0068,test,10,7,29,9,9,1,1,28,8,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488a.ims,111213_line8_Lam633m_K9488a.ims,acquisition-component-0071,test,10,4,167,50,50,5,2,162,48,10,0.5,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488a.ims,111213_line8_Lam633m_K9488a.ims,acquisition-component-0071,test,10,4,167,50,50,5,2,162,48,10,0.75,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488a.ims,111213_line8_Lam633m_K9488a.ims,acquisition-component-0071,test,10,4,150,47,47,2,1,148,46,10,0.8,0,1,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488a.ims,111213_line8_Lam633m_K9488a.ims,acquisition-component-0071,test,10,4,117,39,39,0,0,117,39,10,0.82,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488a.ims,111213_line8_Lam633m_K9488a.ims,acquisition-component-0071,test,10,4,28,11,11,0,0,28,11,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488b.ims,111213_line8_Lam633m_K9488b.ims,acquisition-component-0071,test,10,8,160,60,60,5,4,155,56,10,0.5,0,4,3
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488b.ims,111213_line8_Lam633m_K9488b.ims,acquisition-component-0071,test,10,8,160,60,60,5,4,155,56,10,0.75,0,4,3
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488b.ims,111213_line8_Lam633m_K9488b.ims,acquisition-component-0071,test,10,8,155,57,57,5,4,150,53,10,0.8,0,4,3
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488b.ims,111213_line8_Lam633m_K9488b.ims,acquisition-component-0071,test,10,8,128,44,44,3,2,125,42,10,0.82,0,2,1
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488b.ims,111213_line8_Lam633m_K9488b.ims,acquisition-component-0071,test,10,8,37,11,11,1,1,36,10,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488c.ims,111213_line8_Lam633m_K9488c.ims,acquisition-component-0071,test,10,9,174,63,63,6,3,168,60,10,0.5,0,5,3
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488c.ims,111213_line8_Lam633m_K9488c.ims,acquisition-component-0071,test,10,9,174,63,63,6,3,168,60,10,0.75,0,5,3
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488c.ims,111213_line8_Lam633m_K9488c.ims,acquisition-component-0071,test,10,9,169,61,61,6,3,163,58,10,0.8,0,5,3
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488c.ims,111213_line8_Lam633m_K9488c.ims,acquisition-component-0071,test,10,9,154,56,56,5,2,149,54,10,0.82,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488c.ims,111213_line8_Lam633m_K9488c.ims,acquisition-component-0071,test,10,9,73,31,31,1,1,72,30,10,0.85,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488d.ims,111213_line8_Lam633m_K9488d.ims,acquisition-component-0071,test,10,8,169,56,56,3,2,166,54,10,0.5,0,2,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488d.ims,111213_line8_Lam633m_K9488d.ims,acquisition-component-0071,test,10,8,169,56,56,3,2,166,54,10,0.75,0,2,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488d.ims,111213_line8_Lam633m_K9488d.ims,acquisition-component-0071,test,10,8,158,53,53,1,1,157,52,10,0.8,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488d.ims,111213_line8_Lam633m_K9488d.ims,acquisition-component-0071,test,10,8,128,42,42,0,0,128,42,10,0.82,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488d.ims,111213_line8_Lam633m_K9488d.ims,acquisition-component-0071,test,10,8,32,7,7,0,0,32,7,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488e.ims,111213_line8_Lam633m_K9488e.ims,acquisition-component-0071,test,10,8,156,60,60,7,2,149,58,10,0.5,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488e.ims,111213_line8_Lam633m_K9488e.ims,acquisition-component-0071,test,10,8,155,59,59,7,2,148,57,10,0.75,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488e.ims,111213_line8_Lam633m_K9488e.ims,acquisition-component-0071,test,10,8,149,59,59,7,2,142,57,10,0.8,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488e.ims,111213_line8_Lam633m_K9488e.ims,acquisition-component-0071,test,10,8,109,40,40,5,2,104,38,10,0.82,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8-60-3d/111213_line8_Lam633m_K9488e.ims,111213_line8_Lam633m_K9488e.ims,acquisition-component-0071,test,10,8,16,8,8,1,1,15,7,10,0.85,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/line8/110413_line8_Lam633m_K9488b.ims,110413_line8_Lam633m_K9488b.ims,acquisition-component-0072,test,10,9,142,18,18,5,2,137,16,10,0.5,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8/110413_line8_Lam633m_K9488b.ims,110413_line8_Lam633m_K9488b.ims,acquisition-component-0072,test,10,9,142,18,18,5,2,137,16,10,0.75,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8/110413_line8_Lam633m_K9488b.ims,110413_line8_Lam633m_K9488b.ims,acquisition-component-0072,test,10,9,141,18,18,5,2,136,16,10,0.8,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8/110413_line8_Lam633m_K9488b.ims,110413_line8_Lam633m_K9488b.ims,acquisition-component-0072,test,10,9,128,15,15,5,2,123,13,10,0.82,0,4,2
+/home/rokoel/Documents/cell-nn/FISH/line8/110413_line8_Lam633m_K9488b.ims,110413_line8_Lam633m_K9488b.ims,acquisition-component-0072,test,10,9,78,6,6,4,2,74,4,10,0.85,0,3,2
+/home/rokoel/Documents/cell-nn/FISH/line8/120413_line8_Lam633m_K9488a.ims,120413_line8_Lam633m_K9488a.ims,acquisition-component-0073,test,10,8,143,11,11,4,1,139,10,10,0.5,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/line8/120413_line8_Lam633m_K9488a.ims,120413_line8_Lam633m_K9488a.ims,acquisition-component-0073,test,10,8,143,11,11,4,1,139,10,10,0.75,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/line8/120413_line8_Lam633m_K9488a.ims,120413_line8_Lam633m_K9488a.ims,acquisition-component-0073,test,10,8,128,9,9,4,1,124,8,10,0.8,0,3,1
+/home/rokoel/Documents/cell-nn/FISH/line8/120413_line8_Lam633m_K9488a.ims,120413_line8_Lam633m_K9488a.ims,acquisition-component-0073,test,10,8,100,7,7,3,0,97,7,10,0.82,0,2,0
+/home/rokoel/Documents/cell-nn/FISH/line8/120413_line8_Lam633m_K9488a.ims,120413_line8_Lam633m_K9488a.ims,acquisition-component-0073,test,10,8,22,1,1,0,0,22,1,10,0.85,0,0,0
+/home/rokoel/Documents/cell-nn/FISH/line8/190413_yw_Lam633m_K9488a.ims,190413_yw_Lam633m_K9488a.ims,acquisition-component-0075,test,9,9,169,4,4,6,2,163,2,9,0.5,0,6,2
+/home/rokoel/Documents/cell-nn/FISH/line8/190413_yw_Lam633m_K9488a.ims,190413_yw_Lam633m_K9488a.ims,acquisition-component-0075,test,9,9,169,4,4,6,2,163,2,9,0.75,0,6,2
+/home/rokoel/Documents/cell-nn/FISH/line8/190413_yw_Lam633m_K9488a.ims,190413_yw_Lam633m_K9488a.ims,acquisition-component-0075,test,9,9,160,4,4,5,2,155,2,9,0.8,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/line8/190413_yw_Lam633m_K9488a.ims,190413_yw_Lam633m_K9488a.ims,acquisition-component-0075,test,9,9,142,4,4,5,2,137,2,9,0.82,0,5,2
+/home/rokoel/Documents/cell-nn/FISH/line8/190413_yw_Lam633m_K9488a.ims,190413_yw_Lam633m_K9488a.ims,acquisition-component-0075,test,9,9,55,2,2,1,1,54,1,9,0.85,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/line8/230413_yw_Lam633m_K9488b.ims,230413_yw_Lam633m_K9488b.ims,acquisition-component-0076,test,9,6,117,13,13,3,2,114,11,9,0.5,0,2,2
+/home/rokoel/Documents/cell-nn/FISH/line8/230413_yw_Lam633m_K9488b.ims,230413_yw_Lam633m_K9488b.ims,acquisition-component-0076,test,9,6,117,13,13,3,2,114,11,9,0.75,0,2,2
+/home/rokoel/Documents/cell-nn/FISH/line8/230413_yw_Lam633m_K9488b.ims,230413_yw_Lam633m_K9488b.ims,acquisition-component-0076,test,9,6,112,13,13,3,2,109,11,9,0.8,0,2,2
+/home/rokoel/Documents/cell-nn/FISH/line8/230413_yw_Lam633m_K9488b.ims,230413_yw_Lam633m_K9488b.ims,acquisition-component-0076,test,9,6,94,10,10,2,1,92,9,9,0.82,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/line8/230413_yw_Lam633m_K9488b.ims,230413_yw_Lam633m_K9488b.ims,acquisition-component-0076,test,9,6,31,1,1,1,1,30,0,9,0.85,0,1,1
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488a.ims,261012_HAG4withoutCu_Lam633_K9488a.ims,acquisition-component-0087,test,8,4,37,22,22,7,7,30,15,7,0.5,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488a.ims,261012_HAG4withoutCu_Lam633_K9488a.ims,acquisition-component-0087,test,8,4,37,22,22,7,7,30,15,7,0.75,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488a.ims,261012_HAG4withoutCu_Lam633_K9488a.ims,acquisition-component-0087,test,8,4,32,18,18,6,6,26,12,7,0.8,1,3,3
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488a.ims,261012_HAG4withoutCu_Lam633_K9488a.ims,acquisition-component-0087,test,8,4,26,14,14,4,4,22,10,7,0.82,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488a.ims,261012_HAG4withoutCu_Lam633_K9488a.ims,acquisition-component-0087,test,8,4,10,6,6,1,1,9,5,7,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488b.ims,261012_HAG4withoutCu_Lam633_K9488b.ims,acquisition-component-0087,test,8,6,41,24,26,6,6,35,18,8,0.5,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488b.ims,261012_HAG4withoutCu_Lam633_K9488b.ims,acquisition-component-0087,test,8,6,41,24,26,6,6,35,18,8,0.75,1,5,5
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488b.ims,261012_HAG4withoutCu_Lam633_K9488b.ims,acquisition-component-0087,test,8,6,32,18,19,5,5,27,13,8,0.8,1,4,4
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488b.ims,261012_HAG4withoutCu_Lam633_K9488b.ims,acquisition-component-0087,test,8,6,22,11,12,3,3,19,8,8,0.82,1,3,3
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488b.ims,261012_HAG4withoutCu_Lam633_K9488b.ims,acquisition-component-0087,test,8,6,9,3,4,0,0,9,3,8,0.85,1,0,0
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488c.ims,261012_HAG4withoutCu_Lam633_K9488c.ims,acquisition-component-0087,test,10,6,40,23,23,9,8,31,15,10,0.5,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488c.ims,261012_HAG4withoutCu_Lam633_K9488c.ims,acquisition-component-0087,test,10,6,40,23,23,9,8,31,15,10,0.75,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488c.ims,261012_HAG4withoutCu_Lam633_K9488c.ims,acquisition-component-0087,test,10,6,35,19,19,9,8,26,11,10,0.8,1,6,5
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488c.ims,261012_HAG4withoutCu_Lam633_K9488c.ims,acquisition-component-0087,test,10,6,23,15,15,8,7,15,8,10,0.82,1,5,4
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488c.ims,261012_HAG4withoutCu_Lam633_K9488c.ims,acquisition-component-0087,test,10,6,10,6,6,1,1,9,5,10,0.85,1,0,0
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488d.ims,261012_HAG4withoutCu_Lam633_K9488d.ims,acquisition-component-0087,test,2,2,41,21,21,2,2,39,19,2,0.5,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488d.ims,261012_HAG4withoutCu_Lam633_K9488d.ims,acquisition-component-0087,test,2,2,38,19,19,2,2,36,17,2,0.75,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488d.ims,261012_HAG4withoutCu_Lam633_K9488d.ims,acquisition-component-0087,test,2,2,32,17,17,2,2,30,15,2,0.8,1,2,2
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488d.ims,261012_HAG4withoutCu_Lam633_K9488d.ims,acquisition-component-0087,test,2,2,23,10,10,1,1,22,9,2,0.82,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/new2_HAG4withoutCu_60D/261012_HAG4withoutCu_Lam633_K9488d.ims,261012_HAG4withoutCu_Lam633_K9488d.ims,acquisition-component-0087,test,2,2,9,5,5,1,1,8,4,2,0.85,1,1,1
+/home/rokoel/Documents/cell-nn/FISH/new_HAG4withoutCu_60D/250912_HAG4withoutCu_Lam633m_K9488a.ims,250912_HAG4withoutCu_Lam633m_K9488a.ims,acquisition-component-0094,test,13,13,79,42,43,13,11,66,31,13,0.5,1,13,11
+/home/rokoel/Documents/cell-nn/FISH/new_HAG4withoutCu_60D/250912_HAG4withoutCu_Lam633m_K9488a.ims,250912_HAG4withoutCu_Lam633m_K9488a.ims,acquisition-component-0094,test,13,13,78,42,43,13,11,65,31,13,0.75,1,13,11
+/home/rokoel/Documents/cell-nn/FISH/new_HAG4withoutCu_60D/250912_HAG4withoutCu_Lam633m_K9488a.ims,250912_HAG4withoutCu_Lam633m_K9488a.ims,acquisition-component-0094,test,13,13,63,37,38,11,11,52,26,13,0.8,1,11,11
+/home/rokoel/Documents/cell-nn/FISH/new_HAG4withoutCu_60D/250912_HAG4withoutCu_Lam633m_K9488a.ims,250912_HAG4withoutCu_Lam633m_K9488a.ims,acquisition-component-0094,test,13,13,42,25,26,6,6,36,19,13,0.82,1,6,6
+/home/rokoel/Documents/cell-nn/FISH/new_HAG4withoutCu_60D/250912_HAG4withoutCu_Lam633m_K9488a.ims,250912_HAG4withoutCu_Lam633m_K9488a.ims,acquisition-component-0094,test,13,13,13,9,10,3,3,10,6,13,0.85,1,3,3

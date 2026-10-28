@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path, PureWindowsPath
 import re
 import xml.etree.ElementTree as ET
+from uuid import NAMESPACE_URL, uuid5
 
 import numpy as np
 
@@ -84,6 +85,7 @@ def parse_scene(data: bytes | str, source: Path | None = None) -> Scene:
                     ' '.join(e.text or '' for e in surface.findall('triangles')),
                     color, opacity, int(surface.findtext('timeIndex', '0')), visible,
                 ))
+                result.surfaces[-1].native_xml = ET.tostring(viewer)
             except (ValueError, TypeError) as exc:
                 result.warnings.append(f'Surface {name}: {exc}')
     # Imaris 5.0 stores meshes directly in bpSurfaceObject.
@@ -108,9 +110,12 @@ def parse_scene(data: bytes | str, source: Path | None = None) -> Scene:
             labels = [e.get('Name', str(i + 1)) for i, e in enumerate(obj.findall('Point'))]
             times = [int(e.get('TimeIndex', '0')) for e in obj.findall('Point')]
             mode = obj.findtext('LineMode', 'Polygon')
-            edges = [(i, i + 1) for i in range(len(points) - 1)] if mode.lower() not in ('none', 'off') else []
+            if mode.lower() not in ('polygon', 'pairwise', 'none', 'off'):
+                raise ValueError(f'unsupported measurement line mode: {mode}')
+            step = 2 if mode.lower() == 'pairwise' else 1
+            edges = [(i, i + 1) for i in range(0, len(points) - 1, step)] if mode.lower() not in ('none', 'off') else []
             result.measurements.append(Measurement(name, points, labels, times, edges, color,
-                visible, obj.findtext('VisibleForAllTimepoints', 'true') == 'true'))
+                visible, obj.findtext('VisibleForAllTimepoints', 'true') == 'true', native_xml=ET.tostring(obj)))
         except (ValueError, TypeError) as exc:
             result.warnings.append(f'Measurement {name}: {exc}')
     # Earlier scenes connect direct child points within each component group.
@@ -152,20 +157,18 @@ def parse_scene(data: bytes | str, source: Path | None = None) -> Scene:
                 for line in element.findall('line'):
                     points = np.asarray([[float(v.get('x')), float(v.get('y'))] for v in line.findall('vertex')])
                     if len(points) >= 3 and np.isfinite(points).all():
-                        result.contours.append(Contour(f'{name} · {"XYZ"[axis]} slice {plane + 1}', points, axis, plane, color, visible, native_xml=ET.tostring(manual)))
+                        result.contours.append(Contour(f'{name} · {"XYZ"[axis]} slice {plane + 1}', points, axis, plane, color, visible, native_xml=ET.tostring(manual), native_name=name))
         except (ValueError, TypeError) as exc:
             result.warnings.append(f'Unmeshed contour {name}: {exc}')
     for tag in ('bpSpots', 'bpFilaments'):
         if root.find('.//' + tag) is not None:
             result.warnings.append(f'{tag} annotations are not supported by this XML reader.')
-    exported = (any(el.tag is ET.Comment and (el.text or '').startswith('FISH Viewer exported detections;') for el in root)
-            or any((el.text or '').startswith('FISH Viewer exported detections;') for el in root.iter('historyLog')))
-    for objects in (result.surfaces, result.measurements, result.contours):
-        for obj in objects:
-            if obj.name.startswith('Manual · '): obj.source = 'manual'
-            elif obj.name.startswith('Program · '): obj.source = 'program'
-            elif exported: obj.source = 'signal_prediction' if isinstance(obj, Measurement) else 'prediction'
-            if obj.name.startswith(('Manual · ', 'Program · ')): obj.name = obj.name.split(' · ',1)[1]
+    # Every imported object is pre-existing. Display names and history text do
+    # not confer ownership of an object to a new analysis run.
+    if source is not None:
+        for key in ('surfaces', 'measurements', 'contours'):
+            for index, obj in enumerate(getattr(result, key)):
+                obj.uid = str(uuid5(NAMESPACE_URL, f'{source.resolve()}#{key}/{index}'))
     return result
 
 

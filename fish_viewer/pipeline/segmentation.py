@@ -6,7 +6,7 @@ import time
 
 import numpy as np
 from scipy import ndimage as ndi
-from skimage import feature, measure, morphology, segmentation, transform
+from skimage import feature, measure, transform
 
 from ..models import Dataset, Surface
 from .config import PipelineConfig
@@ -170,95 +170,6 @@ def mask_properties(mask, spacing):
         sphericity=min(1.0, sphericity), elongation=elongation)
 
 
-def segment(prepared: Prepared, config: PipelineConfig, emit=None, cancel=None) -> Prediction:
-    config.validate()
-    times = {}
-    stages = dict(prepared.previews)
-    spacing = np.asarray(prepared.spacing)
-    start = time.perf_counter()
-    def report(stage, percent):
-        checkpoint(cancel)
-        if emit:
-            emit(dict(kind='stage', stage=stage, progress=percent))
-    report('Smoothing and boundary threshold', 10)
-    smooth = ndi.gaussian_filter(prepared.image, sigma=np.maximum(0.05, config.smooth_um / spacing))
-    walls = smooth > config.threshold
-    radius = max(0, int(round(config.closing_um / spacing[1])))
-    filled = np.zeros_like(walls)
-    # Close small gaps in XY shells; the final labeling and shape tests are 3D.
-    footprint = morphology.disk(radius)
-    for z in range(len(walls)):
-        checkpoint(cancel)
-        shell = ndi.binary_closing(walls[z], structure=footprint) if radius else walls[z]
-        filled[z] = ndi.binary_fill_holes(shell) if config.method == 'distance_watershed' else ~shell
-    if config.method == 'distance_watershed':
-        filled = ndi.binary_opening(ndi.binary_fill_holes(filled), iterations=1)
-    stages['Candidate interiors'] = filled[len(filled)//2].astype(np.float32)
-    times['threshold_and_fill'] = time.perf_counter() - start
-    report('3D seeds and watershed', 35)
-    start = time.perf_counter()
-    distance = ndi.distance_transform_edt(filled, sampling=spacing)
-    peaks = feature.peak_local_max(distance, min_distance=max(1, int(round(config.seed_distance_um / spacing.min()))),
-        threshold_abs=config.min_diameter_um * 0.28, labels=filled.astype(np.uint8), exclude_border=False)
-    markers = np.zeros(filled.shape, np.int32)
-    if config.method == 'boundary_watershed':
-        if len(peaks):
-            keep = (distance[tuple(peaks.T)] <= config.max_diameter_um / 2) & np.all(peaks > 1, axis=1) & np.all(peaks < np.asarray(filled.shape)-2, axis=1)
-            peaks = peaks[keep]
-        markers[[0, -1], :, :] = 1
-        markers[:, [0, -1], :] = 1
-        markers[:, :, [0, -1]] = 1
-        if len(peaks):
-            markers[tuple(peaks.T)] = np.arange(2, len(peaks)+2)
-        labels = segmentation.watershed(smooth, markers=markers)
-        labels[labels == 1] = 0
-    else:
-        if len(peaks):
-            markers[tuple(peaks.T)] = np.arange(1, len(peaks) + 1)
-        labels = segmentation.watershed(-distance, markers=markers, mask=filled)
-    stages['Watershed candidates'] = labels[len(labels)//2].astype(np.float32)
-    times['watershed'] = time.perf_counter() - start
-    report('3D roundness filtering', 60)
-    start = time.perf_counter()
-    output = np.zeros_like(labels, dtype=np.uint32)
-    rejected = dict(size=0, border=0, elongation=0, sphericity=0)
-    cells = []
-    objects = ndi.find_objects(labels)
-    voxel_volume = float(np.prod(spacing))
-    counts = np.bincount(labels.ravel())
-    for i, slices in enumerate(objects, 1):
-        checkpoint(cancel)
-        if slices is None:
-            continue
-        equivalent_diameter = (6 * counts[i] * voxel_volume / np.pi) ** (1/3)
-        if not config.min_diameter_um <= equivalent_diameter <= config.max_diameter_um:
-            rejected['size'] += 1
-            continue
-        # Boundary watershed reserves the outer voxel planes for background;
-        # touching that artificial frame also means the cell may be truncated.
-        border_margin = 1 if config.method == 'boundary_watershed' else 0
-        if config.exclude_border and any(s.start <= border_margin or s.stop >= n-border_margin for s, n in zip(slices, labels.shape)):
-            rejected['border'] += 1
-            continue
-        mask = labels[slices] == i
-        props = mask_properties(mask, spacing)
-        if props['elongation'] > config.max_elongation:
-            rejected['elongation'] += 1
-            continue
-        if props['sphericity'] < config.min_sphericity:
-            rejected['sphericity'] += 1
-            continue
-        index = len(cells) + 1
-        output[slices][mask] = index
-        center_zyx = (np.argwhere(mask).mean(0) + [s.start for s in slices]) * spacing
-        props.update(label=index, center_xyz=(center_zyx[::-1] + prepared.origin).tolist())
-        cells.append(props)
-    times['shape_filter'] = time.perf_counter() - start
-    times['segmentation'] = sum(times.values())
-    stages['Accepted spherical cells'] = output[len(output)//2].astype(np.float32)
-    if emit:
-        emit(dict(kind='stage', stage='Contours ready', progress=100, cells=len(cells), rejected=rejected, previews=stages, timings=times))
-    return Prediction(output, cells, stages, times, rejected)
 
 
 def prediction_surfaces(prediction: Prediction, prepared: Prepared, time_index=0) -> list[Surface]:

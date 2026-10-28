@@ -6,12 +6,13 @@ are validated; unknown object layouts are reported rather than silently lost.
 
 import re
 import xml.etree.ElementTree as ET
+from uuid import NAMESPACE_URL, uuid5
 import h5py
 import numpy as np
 from .models import Scene, Surface, Measurement
 
 
-def _array(group, names, width):
+def _array(group, names, width, *, normals=False):
     for name in names:
         if name not in group or not isinstance(group[name], h5py.Dataset):
             continue
@@ -21,6 +22,12 @@ def _array(group, names, width):
             if len(fields) < width:
                 continue
             value = np.column_stack([value[f] for f in fields[:width]])
+        # Native IMS meshes store XYZ + normal XYZ in each vertex record.
+        # Flattening these records into triples turns normals into vertices.
+        if normals and value.ndim == 2 and value.shape[1] == 6:
+            value = value[:, :3]
+        if value.ndim == 2 and value.shape[1] != width:
+            raise ValueError(f"Invalid {name} record width.")
         if value.size % width:
             raise ValueError(f"Invalid {name} array shape.")
         return np.asarray(value).reshape(-1, width)
@@ -88,7 +95,7 @@ def content_scene(image, decode):
                         )
                     )
                 return
-            vertices = _array(group, ("Vertices", "VertexPositions", "CoordsXYZ"), 3)
+            vertices = _array(group, ("Vertices", "VertexPositions", "CoordsXYZ"), 3, normals=True)
             faces = _array(
                 group, ("Triangles", "TriangleIndices", "TriangleVertexIndices"), 3
             )
@@ -101,6 +108,11 @@ def content_scene(image, decode):
             ):
                 raise ValueError("Invalid embedded mesh arrays.")
             records = group["SurfaceData"][()] if "SurfaceData" in group else None
+            if "TimeNVerticesNTriangles" in group:
+                counts = np.asarray(group["TimeNVerticesNTriangles"][()])
+                if counts.ndim != 2 or counts.shape[1] != 3:
+                    raise ValueError("Invalid TimeNVerticesNTriangles records.")
+                records = np.rec.fromarrays(counts.T, names="TimeIndex,NumberOfVertices,NumberOfTriangles")
             fields = (
                 {
                     re.sub("[^a-z]", "", f.lower()).removeprefix("m"): f
@@ -127,11 +139,12 @@ def content_scene(image, decode):
                         raise ValueError("Invalid surface-local triangle indices.")
                     scene.surfaces.append(
                         Surface(
-                            f"{name} [{i + 1}]",
+                            name if len(records) == 1 else f"{name} [{i + 1}]",
                             v.astype(float).copy(),
                             f.copy(),
                             color,
                             time=int(record[time_field]) if time_field else 0,
+                            native_id=decode(group.attrs['Id']) if 'Id' in group.attrs else None,
                         )
                     )
                     start_v += count_v
@@ -148,10 +161,17 @@ def content_scene(image, decode):
                         faces.astype(np.int64),
                         color,
                         time=int(group.attrs.get("TimeIndex", 0)),
+                        native_id=decode(group.attrs['Id']) if 'Id' in group.attrs else None,
                     )
                 )
         except (ValueError, TypeError, KeyError) as exc:
             scene.warnings.append(f"Embedded object {name}: {exc}")
 
-    content.visititems(visit)
+    groups = []
+    content.visititems(lambda path, group: groups.append((path, group)) if isinstance(group, h5py.Group) else None)
+    for path, group in sorted(groups, key=lambda item: [int(p) if p.isdigit() else p for p in re.split(r'(\d+)', item[0])]):
+        visit(path, group)
+    for key in ('surfaces', 'measurements'):
+        for index, obj in enumerate(getattr(scene, key)):
+            obj.uid = str(uuid5(NAMESPACE_URL, f'{image.filename}#embedded/{key}/{index}'))
     return scene

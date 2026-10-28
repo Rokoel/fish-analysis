@@ -32,7 +32,7 @@ def load(directory, device_name='auto'):
     if device_name in ('gpu', 'cuda') and device.type != 'cuda':
         raise ValueError('GPU requested but the PyTorch runtime has no CUDA device.')
     torch.set_num_threads(4)
-    model = create(manifest['engine'], config, manifest.get('spotiflow_config')).to(device)
+    model = create(manifest['engine'], config).to(device)
     weights = torch.load(Path(directory) / manifest['checkpoint'], map_location=device, weights_only=True)
     model.load_state_dict(weights['state_dict']); model.eval()
     return model, manifest, config, device
@@ -68,7 +68,7 @@ def apply(image, scene, cell_predictions, model_directory, output, device_name='
         from ..channel_roles import signal_indices
         selected_channels=signal_indices(len(dataset.volumes),membrane,signal_channels)
         report['signal_channels']=selected_channels
-        for field, name in [('detector', 'cell_detector'), ('refinement', 'boundary_refinement'), ('membrane_snap', 'membrane_snap'), ('cell_recovery', 'cell_recovery'), ('consensus', 'cell_consensus'), ('roundness_filter', 'roundness_filter'), ('signal_first', 'signal_first')]:
+        for field, name in [('detector', 'cell_detector'), ('refinement', 'boundary_refinement'), ('consensus', 'cell_consensus'), ('roundness_filter', 'roundness_filter')]:
             if metadata.get(field): report[name] = metadata[field]
         images = [normalized(v) for v in dataset.volumes]
         origin = np.asarray(dataset.center_origin); spacing = np.asarray(dataset.spacing[::-1])
@@ -84,7 +84,7 @@ def apply(image, scene, cell_predictions, model_directory, output, device_name='
                 signal = resample_crop(volume, spacing, origin, crop_origin, shape, config.spacing_um)
                 inputs = np.stack([signal, membrane_image, mask]).astype(np.float32)
                 heatmap, flow = predict_volume(model, inputs, device)
-                rows = local_centers(heatmap, mask, crop_origin, config, cell, channel, floor=min(.01, manifest['threshold']), flow=flow)
+                rows = local_centers(heatmap, mask, crop_origin, config, cell, channel, floor=min(.01, manifest['threshold']))
                 membership = at_labels(labels, [p['xyz'] for p in rows], metadata['origin_xyz'], metadata['spacing_zyx'])
                 proposed.extend(p for p, owner in zip(rows, membership) if owner == cell)
         points = suppress(proposed, [p['score'] for p in proposed], manifest['threshold'], config.detection_separation_um)

@@ -17,8 +17,8 @@ from ..neural.precision import evidence_preset
 
 
 STAGES = [('cells', 'Detecting cell contours'), ('signals', 'Finding signals inside cells'),
-          ('filter', 'Removing cells without signals'), ('measure', 'Creating B points and distance lines'),
-          ('export', 'Saving Imaris files and tables')]
+          ('filter', 'Removing cells without signals'), ('measure', 'Measuring border and signal-pair distances'),
+          ('export', 'Saving annotated Imaris image and Excel workbook')]
 
 
 def default_models():
@@ -36,11 +36,8 @@ def sensitive_stardist_model():
 
 
 def default_refinement_model():
-    for name in ('refinement-bias-candidate', 'refinement'):
-        path = bundled_model(name)
-        if (path / 'refinement-model.json').is_file():
-            return str(path)
-    return ''
+    path = bundled_model('refinement-bias-candidate')
+    return str(path) if (path / 'refinement-model.json').is_file() else ''
 
 
 def default_proposal_model():
@@ -49,36 +46,26 @@ def default_proposal_model():
 
 
 def migrate_bundled_defaults(settings):
-    """Upgrade former bundled defaults once, preserving custom model choices."""
-    if settings.value('default_pipeline_version', '') == 'consensus-editable-1':
-        return
-    root = Path(__file__).resolve().parents[2]
-    if settings.value('pipeline', '') in ('', 'conservative', 'stardist2d'):
-        settings.setValue('pipeline', 'consensus')
-    value = settings.value('cell_model', '')
-    bundled = { (root / 'models' / name).resolve() for name in
-                ('cells', 'cells-sensitive', 'cells-conservative', 'cells-preprocessed', 'cells-stardist2d', 'proposals') }
-    if not value or Path(value).resolve() in bundled:
-        settings.setValue('cell_model', str(default_models()[0]))
-        settings.setValue('boundary_model', '')
-        for key in ('membrane_snap', 'learned_boundary', 'cell_recovery',
-                    'stardist_proposals', 'consensus_cells'):
-            settings.setValue(key, False)
-    value = settings.value('signal_model', '')
-    if value and Path(value).resolve() == (root / 'models/signals').resolve():
-        settings.setValue('signal_model', str(default_models()[1]))
-    settings.setValue('default_pipeline_version', 'consensus-editable-1')
+    """Keep a supported explicit choice; migrate all retired choices to consensus."""
+    pipeline = settings.value('pipeline', 'consensus')
+    if pipeline not in ('consensus', 'stardist2d'):
+        pipeline = 'consensus'
+    settings.setValue('pipeline', pipeline)
+    settings.setValue('cell_model', str(bundled_model('cells-stardist2d' if pipeline == 'stardist2d' else 'cells-sensitive')))
+    settings.setValue('signal_model', str(default_models()[1]))
+    settings.setValue('boundary_model', default_refinement_model() if pipeline == 'consensus' else '')
+    settings.setValue('default_pipeline_version', 'two-pipelines-1')
 
 
 def check_models(cells, signals):
-    if (Path(cells) / 'proposal-model.json').is_file():
-        from ..proposals.config import read_model as read_proposal_model
-        manifest = read_proposal_model(cells)
-    elif json.loads((Path(cells)/'fish-model.json').read_text()).get('engine') == 'stardist2d-slice':
+    manifest = json.loads((Path(cells) / 'fish-model.json').read_text())
+    if manifest.get('engine') == 'stardist2d-slice':
         from ..neural.slice_inference import read_model as read_slice_model
-        manifest=read_slice_model(cells)
-    else:
+        manifest = read_slice_model(cells)
+    elif manifest.get('engine') == 'stardist3d':
         manifest = read_model(cells)
+    else:
+        raise ValueError('Choose the consensus StarDist detector or fine-tuned StarDist 2D.')
     from ..signals.model import read_model as read_signal_model
     read_signal_model(signals)
     return manifest
@@ -98,148 +85,84 @@ class AnalysisController(QtCore.QObject):
         self.stopping = False
         self.closing = False
 
-    def start(self, image, output, cells, signals, device='auto', refinement=None, membrane_snap=None, recovery=None, stardist_proposals=False, consensus_model=None, boundary_guidance=None, roundness=None, signal_first=False, cell_channel=None, signal_channels=None, source_scene=None):
+    def start(self, image, output, cells=None, signals=None, device='auto', refinement=None,
+              stardist_proposals=None, consensus_model=None, roundness=.82, cell_channel=None,
+              signal_channels=None, source_scene=None, maximum_pair_distance=1., pipeline=None):
         if self.busy:
             raise ValueError('A scan is already being processed.')
-        self.source_scene = str(Path(source_scene).resolve()) if source_scene else None
+        import math
+        if not math.isfinite(maximum_pair_distance) or maximum_pair_distance <= 0:
+            raise ValueError('The maximum signal-pair distance must be positive and finite.')
+        if pipeline not in (None, 'consensus', 'stardist2d'):
+            raise ValueError('Only both-detector consensus and fine-tuned StarDist 2D are supported.')
+        cells = cells or bundled_model('cells-stardist2d' if pipeline == 'stardist2d' else 'cells-sensitive')
+        signals = signals or default_models()[1]
         manifest = check_models(cells, signals)
-        if cell_channel is not None and (type(cell_channel) is not int or cell_channel<0):
-            raise ValueError('Cell channel must be a nonnegative channel index.')
-        if signal_channels is not None and (not signal_channels or any(type(i) is not int or i<0 for i in signal_channels) or len(set(signal_channels)) != len(signal_channels)):
-            raise ValueError('Select one or more distinct signal channel indices.')
-        if cell_channel is not None and signal_channels is not None and cell_channel in signal_channels:
-            raise ValueError('Cell and signal channels must be different.')
-        self.cell_channel=cell_channel
-        self.signal_channels=list(signal_channels) if signal_channels is not None else None
-        self.cell_channel_arguments=['--cell-channel',str(cell_channel)] if cell_channel is not None else []
-        self.signal_channel_arguments=['--signal-channels',*[str(i) for i in signal_channels]] if signal_channels is not None else []
-        self.refinement_model = str(Path(refinement).expanduser().resolve()) if refinement else None
-        self.center_box_detector = manifest.get('engine') == 'cell-center-box3d'
-        self.signal_first = bool(signal_first)
+        inferred = 'stardist2d' if manifest.get('engine') == 'stardist2d-slice' else 'consensus'
+        if pipeline is not None and pipeline != inferred:
+            raise ValueError('The cell checkpoint does not match the chosen pipeline.')
+        self.pipeline = inferred
         self.roundness = float(roundness) if roundness is not None else None
         if self.roundness is not None and not 0 <= self.roundness <= 1:
             raise ValueError('Minimum roundness must lie between 0 and 1.')
-        if self.signal_first:
-            from ..signals.model import read_model as read_signal_model
-            from ..spots.runtime import DIRECT_ENGINES
-            if not self.center_box_detector or recovery is not None or read_signal_model(signals)['engine'] not in DIRECT_ENGINES:
-                raise ValueError('Signal-first inference requires the center/box detector, direct signal model, and no recovery.')
-        if self.center_box_detector and not self.refinement_model:
-            raise ValueError('The center-and-box detector requires a Boundaries model to draw crop contours.')
-        self.stardist_proposals = bool(stardist_proposals)
-        if self.stardist_proposals and (self.center_box_detector or not self.refinement_model):
-            raise ValueError('StarDist proposals require a StarDist Cells model and a Boundaries model.')
-        self.consensus_model = str(Path(consensus_model).resolve()) if consensus_model else None
-        if self.consensus_model:
-            if not self.stardist_proposals:
-                raise ValueError('Consensus requires StarDist proposal redrawing and a center/box model.')
-            from ..proposals.config import read_model as read_proposal_model
-            read_proposal_model(self.consensus_model)
-        self.recovery_config = None
-        if recovery is not None:
-            from ..proposals.recovery import RecoveryConfig
-            self.recovery_config = asdict(RecoveryConfig(**recovery).validate())
-            if not self.center_box_detector:
-                raise ValueError('Cell recovery requires the center and crop models.')
-            from ..spots.runtime import DIRECT_ENGINES
-            from ..signals.model import read_model as read_signal_model
-            if self.recovery_config['signal_guided'] and read_signal_model(signals)['engine'] not in DIRECT_ENGINES:
-                raise ValueError('Signal-guided recovery requires a center U-Net or Spotiflow signal model.')
-        self.stages = list(STAGES)
-        if self.recovery_config and self.recovery_config['signal_guided']:
-            self.stages[1:1] = [('guide_signals', 'Searching uncertain cells for confident signals'),
-                               ('recover', 'Recovering signal-supported contours')]
-        self.membrane_snap = None
-        self.boundary_guidance = str(Path(boundary_guidance).resolve()) if boundary_guidance else None
-        if self.boundary_guidance:
-            from ..boundary.model import read_model as read_boundary_model
-            read_boundary_model(self.boundary_guidance)
-            if membrane_snap is None:
-                membrane_snap = {}
-        if membrane_snap is not None:
-            from ..refinement.membrane import MembraneConfig
-            self.membrane_snap = asdict(MembraneConfig(**membrane_snap).validate())
-        if self.refinement_model:
-            from ..refinement.config import read_model as read_refinement_model
-            read_refinement_model(self.refinement_model)
-            if not self.center_box_detector:
-                self.stages.insert(1, ('refine', 'Redrawing and checking StarDist proposals' if self.stardist_proposals else 'Refining cell boundaries'))
-            else:
-                self.stages[0] = ('cells', 'Finding cell centers and drawing crop contours')
-        if self.consensus_model:
-            at=next(i for i,s in enumerate(self.stages) if s[0]=='signals')
-            self.stages[at:at]=[('consensus_cells','Finding cells with the center/box model'),
-                                ('consensus','Keeping cells detected by both approaches')]
-        if self.membrane_snap:
-            self.stages.insert(next(i for i, s in enumerate(self.stages) if s[0] == 'signals'),
-                               ('snap', 'Snapping contours to membrane peaks'))
-        if self.roundness is not None and self.roundness > 0:
-            self.stages.insert(next(i for i,s in enumerate(self.stages) if s[0]=='signals'),
-                               ('shape', 'Checking 3D cell roundness'))
-        if self.signal_first:
-            self.stages.insert(0, ('scout', 'Finding signals before cell contours'))
+        if cell_channel is not None and (type(cell_channel) is not int or cell_channel < 0):
+            raise ValueError('Cell channel must be a nonnegative channel index.')
+        if signal_channels is not None and (not signal_channels or any(type(i) is not int or i < 0 for i in signal_channels) or len(set(signal_channels)) != len(signal_channels)):
+            raise ValueError('Select distinct nonnegative signal channels.')
+        if cell_channel is not None and signal_channels is not None and cell_channel in signal_channels:
+            raise ValueError('Cell and signal channels must be different.')
         self.image = Path(image).expanduser().resolve()
         if not self.image.is_file():
             raise FileNotFoundError(self.image)
         if device not in ('auto', 'cpu', 'gpu'):
             raise ValueError('Unknown processing device.')
-        self.device = device
-        self.signal_model = str(Path(signals).expanduser().resolve())
+        self.device, self.maximum_pair_distance = device, maximum_pair_distance
+        self.source_scene = str(Path(source_scene).resolve()) if source_scene else None
+        self.cell_channel, self.signal_channels = cell_channel, signal_channels
+        self.cell_channel_arguments = ['--cell-channel', str(cell_channel)] if cell_channel is not None else []
+        self.signal_channel_arguments = ['--signal-channels', *map(str, signal_channels)] if signal_channels is not None else []
+        self.signal_model = str(Path(signals).resolve())
+        self.refinement_model = str(Path(refinement or default_refinement_model()).resolve()) if inferred == 'consensus' else None
+        self.consensus_model = str(Path(consensus_model or default_proposal_model()).resolve()) if inferred == 'consensus' else None
+        self.stardist_proposals = inferred == 'consensus'
+        if inferred == 'consensus':
+            from ..refinement.config import read_model as read_refinement
+            from ..proposals.config import read_model as read_proposals
+            read_refinement(self.refinement_model)
+            read_proposals(self.consensus_model)
+        self.stages = list(STAGES)
+        if inferred == 'consensus':
+            self.stages[1:1] = [('refine', 'Redrawing and checking StarDist proposals'),
+                                ('consensus_cells', 'Finding cells with the center/box model'),
+                                ('consensus', 'Keeping cells detected by both approaches')]
+        if self.roundness is not None and self.roundness > 0:
+            self.stages.insert(next(i for i,s in enumerate(self.stages) if s[0] == 'signals'), ('shape', 'Checking 3D cell roundness'))
         self.directory = Path(output).expanduser().resolve() / f'analysis-{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}'
         self.directory.mkdir(parents=True)
         self.cancel_file = self.directory / 'cancel'
         self.stopping = False
-        self.state = dict(version=1, engine='fish-analysis', status='running', source=str(self.image), source_scene=self.source_scene,
-                          cell_model=str(Path(cells).resolve()), signal_model=self.signal_model, device=device,
-                          processed_time=0, stages={})
-        self.state['refinement_model'] = self.refinement_model
-        self.state['cell_detector_engine'] = manifest.get('engine', 'stardist3d')
-        self.state['membrane_snap'] = self.membrane_snap
-        self.state['boundary_guidance'] = self.boundary_guidance
-        self.state['cell_recovery'] = self.recovery_config
-        self.state['stardist_proposals'] = self.stardist_proposals
-        self.state['consensus_model'] = self.consensus_model
-        self.state['minimum_roundness'] = self.roundness
-        self.state['signal_first'] = self.signal_first
-        self.state['channel_roles']=dict(cell=cell_channel,signals=self.signal_channels)
+        self.state = dict(version=1, engine='fish-analysis', status='running', source=str(self.image),
+                          source_scene=self.source_scene, pipeline=inferred, cell_model=str(Path(cells).resolve()),
+                          signal_model=self.signal_model, device=device, processed_time=0, stages={},
+                          refinement_model=self.refinement_model, consensus_model=self.consensus_model,
+                          cell_detector_engine=manifest.get('engine', 'stardist3d'), stardist_proposals=self.stardist_proposals,
+                          minimum_roundness=self.roundness, maximum_pair_distance_um=maximum_pair_distance,
+                          channel_roles=dict(cell=cell_channel, signals=signal_channels))
         self._persist()
-        if self.center_box_detector:
-            self.busy = True
-            self.busy_changed.emit(True)
-            arguments = ['-m', 'fish_viewer.proposals', '--mode', 'apply',
-                '--image', str(self.image), '--model', str(Path(cells).resolve()),
-                '--boundary-model', self.refinement_model, '--output', str(self.directory / 'work'),
-                '--device', self.device, '--cancel-file', str(self.cancel_file)]
-            if self.recovery_config:
-                self.recovery_path = self.directory / 'recovery-config.json'
-                self.recovery_path.write_text(json.dumps(self.recovery_config), encoding='utf-8')
-                arguments += ['--recovery-config', str(self.recovery_path)]
-            if self.signal_first:
-                self.cell_arguments = arguments + self.cell_channel_arguments
-                self._launch(0, ['-m', 'fish_viewer.signals', '--mode', 'scout',
-                    '--image', str(self.image), '--model', self.signal_model,
-                    '--cell-model', str(Path(cells).resolve()), '--output', str(self.directory/'work'),
-                    '--device', self.device, '--cancel-file', str(self.cancel_file)] + self.cell_channel_arguments + self.signal_channel_arguments)
-            else:
-                self._launch(0, arguments + self.cell_channel_arguments)
-            return
-        if manifest.get('engine') == 'stardist2d-slice':
-            self.busy = True
-            self.busy_changed.emit(True)
-            self._launch(0, ['-m','fish_viewer.neural.slice_inference','--image',str(self.image),
-                '--model',str(Path(cells).resolve()),'--output',str(self.directory/'work'),
-                '--device',self.device,'--cancel-file',str(self.cancel_file)] + self.cell_channel_arguments)
-            return
-        saved_config = NeuralConfig.from_dict(manifest['config'])
-        config = replace(saved_config if self.stardist_proposals else evidence_preset(saved_config), device=device,cell_channel=cell_channel)
-        request = dict(config=asdict(config), mode='apply', model=str(Path(cells).resolve()),
-                       output=str(self.directory / 'work'), cancel_file=str(self.cancel_file),
-                       entries=[dict(image=str(self.image), scene=None)])
-        request_path = self.directory / 'cells-request.json'
-        request_path.write_text(json.dumps(request, indent=2), encoding='utf-8')
         self.busy = True
         self.busy_changed.emit(True)
-        self._launch(0, ['-m', 'fish_viewer.neural', '--request', str(request_path)])
+        if inferred == 'stardist2d':
+            self._launch(0, ['-m', 'fish_viewer.neural.slice_inference', '--image', str(self.image),
+                            '--model', str(Path(cells).resolve()), '--output', str(self.directory/'work'),
+                            '--device', device, '--cancel-file', str(self.cancel_file)] + self.cell_channel_arguments)
+        else:
+            config = replace(NeuralConfig.from_dict(manifest['config']), device=device, cell_channel=cell_channel)
+            request = dict(config=asdict(config), mode='apply', model=str(Path(cells).resolve()),
+                           output=str(self.directory/'work'), cancel_file=str(self.cancel_file),
+                           entries=[dict(image=str(self.image), scene=None)])
+            target = self.directory/'cells-request.json'
+            target.write_text(json.dumps(request, indent=2), encoding='utf-8')
+            self._launch(0, ['-m', 'fish_viewer.neural', '--request', str(target)])
 
     def _persist(self):
         target = self.directory / 'analysis-result.json'
@@ -315,99 +238,52 @@ class AnalysisController(QtCore.QObject):
             return
         try:
             self.state['stages'][self.stage] = report.get('directory', report.get('image'))
-            if self.stage == 'scout':
-                self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='cells'),
-                             self.cell_arguments + ['--signal-candidates', str(Path(report['directory'])/'report.json')])
-                return
-            if self.stage == 'guide_signals':
-                self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='recover'),
-                    ['-m','fish_viewer.proposals','--mode','recover','--cells-report',
-                     str(Path(self.state['stages']['cells'])/'report.json'),'--signal-report',
-                     str(Path(report['directory'])/'report.json'),'--output',str(self.directory/'work'),
-                     '--device',self.device,'--cancel-file',str(self.cancel_file)])
-                return
-            if self.stage in ('cells', 'refine', 'snap', 'recover', 'consensus_cells', 'consensus', 'shape'):
+            def launch(stage, args):
+                self._launch(next(i for i,s in enumerate(self.stages) if s[0] == stage), args)
+            work, cancel = str(self.directory/'work'), str(self.cancel_file)
+            if self.stage in ('cells','refine','consensus_cells','consensus','shape'):
                 if len(report.get('files', [])) != 1 or report.get('failures'):
                     raise ValueError('Cell detection did not produce a complete scan result.')
-                if self.stage == 'cells' and self.refinement_model and not self.center_box_detector:
-                    self._launch(self.stage_index+1, ['-m', 'fish_viewer.refinement', '--mode', 'apply',
-                        '--cells-report', str(Path(report['directory']) / 'report.json'),
-                        '--model', self.refinement_model, '--output', str(self.directory / 'work'),
-                        '--device', self.device, '--cancel-file', str(self.cancel_file)]
-                        + (['--redraw-proposals'] if self.stardist_proposals else []))
-                    return
-                if self.stage == 'refine':
+                if self.stage == 'cells' and self.pipeline == 'consensus':
+                    launch('refine', ['-m','fish_viewer.refinement','--mode','apply','--cells-report',
+                        str(Path(report['directory'])/'report.json'),'--model',self.refinement_model,
+                        '--output',work,'--device',self.device,'--cancel-file',cancel,'--redraw-proposals'])
+                elif self.stage == 'refine':
                     self.state['refinement_summary'] = report['summary']
-                if self.stage == 'refine' and self.consensus_model:
-                    self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='consensus_cells'),
-                        ['-m','fish_viewer.proposals','--mode','apply','--image',str(self.image),
-                         '--model',self.consensus_model,'--boundary-model',self.refinement_model,
-                         '--output',str(self.directory/'work'),'--device',self.device,
-                         '--cancel-file',str(self.cancel_file)] + self.cell_channel_arguments)
-                    return
-                if self.stage == 'consensus_cells':
-                    self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='consensus'),
-                        ['-m','fish_viewer.proposals.consensus','--primary-report',
-                         str(Path(self.state['stages']['refine'])/'report.json'),'--secondary-report',
-                         str(Path(report['directory'])/'report.json'),'--output',str(self.directory/'work'),
-                         '--cancel-file',str(self.cancel_file)])
-                    return
-                if self.stage == 'consensus':
-                    self.state['consensus_summary']=report['summary']
-                if self.stage == 'cells' and self.recovery_config and self.recovery_config['signal_guided']:
-                    self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='guide_signals'),
-                        ['-m','fish_viewer.signals','--mode','apply','--image',str(self.image),
-                         '--cell-predictions',report['files'][0]['recovery_candidates'],'--model',self.signal_model,
-                         '--output',str(self.directory/'work'),'--device',self.device,
-                         '--cancel-file',str(self.cancel_file)] + self.signal_channel_arguments)
-                    return
-                if self.stage == 'recover':
-                    self.state['recovery_summary'] = report['summary']
-                if self.stage not in ('snap', 'shape') and self.membrane_snap:
-                    snap_config = self.directory / 'membrane-config.json'
-                    snap_config.write_text(json.dumps(self.membrane_snap, indent=2), encoding='utf-8')
-                    self._launch(next(i for i, s in enumerate(self.stages) if s[0] == 'snap'),
-                        ['-m', 'fish_viewer.refinement.membrane',
-                         '--cells-report', str(Path(report['directory']) / 'report.json'),
-                         '--output', str(self.directory / 'work'),
-                         '--config-file', str(snap_config),
-                         '--cancel-file', str(self.cancel_file)]
-                        + (['--boundary-model', self.boundary_guidance, '--device', self.device]
-                           if self.boundary_guidance else []))
-                    return
-                if self.stage == 'snap':
-                    self.state['membrane_snap_summary'] = report['summary']
-                if self.stage != 'shape' and self.roundness is not None and self.roundness > 0:
-                    self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='shape'),
-                        ['-m','fish_viewer.analysis.shape','--cells-report', str(Path(report['directory'])/'report.json'),
-                         '--output',str(self.directory/'work'),'--minimum',str(self.roundness),
-                         '--cancel-file',str(self.cancel_file)])
-                    return
-                args = ['-m', 'fish_viewer.signals', '--mode', 'apply', '--image', str(self.image),
-                        '--cell-predictions', report['files'][0]['predictions'], '--model', self.signal_model,
-                        '--output', str(self.directory / 'work'), '--device', self.device,
-                        '--cancel-file', str(self.cancel_file)]
-                self._launch(next(i for i,s in enumerate(self.stages) if s[0]=='signals'), args + self.signal_channel_arguments)
-            elif self.stage in ('signals', 'filter'):
+                    launch('consensus_cells', ['-m','fish_viewer.proposals','--mode','apply','--image',str(self.image),
+                        '--model',self.consensus_model,'--boundary-model',self.refinement_model,
+                        '--output',work,'--device',self.device,'--cancel-file',cancel] + self.cell_channel_arguments)
+                elif self.stage == 'consensus_cells':
+                    launch('consensus', ['-m','fish_viewer.proposals.consensus','--primary-report',
+                        str(Path(self.state['stages']['refine'])/'report.json'),'--secondary-report',
+                        str(Path(report['directory'])/'report.json'),'--output',work,'--cancel-file',cancel])
+                elif self.stage != 'shape' and self.roundness is not None and self.roundness > 0:
+                    if self.stage == 'consensus': self.state['consensus_summary'] = report['summary']
+                    launch('shape', ['-m','fish_viewer.analysis.shape','--cells-report',str(Path(report['directory'])/'report.json'),
+                        '--output',work,'--minimum',str(self.roundness),'--cancel-file',cancel])
+                else:
+                    launch('signals', ['-m','fish_viewer.signals','--mode','apply','--image',str(self.image),
+                        '--cell-predictions',report['files'][0]['predictions'],'--model',self.signal_model,
+                        '--output',work,'--device',self.device,'--cancel-file',cancel] + self.signal_channel_arguments)
+            elif self.stage in ('signals','filter'):
                 operation = 'filter' if self.stage == 'signals' else 'measure'
-                self._launch(self.stage_index+1, ['-m', 'fish_viewer.workflow', operation,
-                    '--report', str(Path(report['directory']) / 'report.json'),
-                    '--output', str(self.directory / 'work'), '--cancel-file', str(self.cancel_file)])
+                launch(operation, ['-m','fish_viewer.workflow',operation,'--report',str(Path(report['directory'])/'report.json'),
+                    '--output',work,'--cancel-file',cancel] + (['--max-pair-distance',str(self.maximum_pair_distance)] if operation == 'measure' else []))
             elif self.stage == 'measure':
-                self.state['signal_report'] = str((Path(report['directory']) / 'report.json').relative_to(self.directory))
-                target = self.directory / 'export' / (self.image.stem + '_measured.ims')
-                self._launch(len(self.stages)-1, ['-m', 'fish_viewer.workflow', 'export', *(['--scene', self.source_scene] if self.source_scene else []), '--report', str(Path(report['directory']) / 'report.json'),
-                    '--output', str(target), '--cancel-file', str(self.cancel_file)])
+                self.state['signal_report'] = str((Path(report['directory'])/'report.json').relative_to(self.directory))
+                launch('export', ['-m','fish_viewer.workflow','export',*(['--scene',self.source_scene] if self.source_scene else []),
+                    '--report',str(Path(report['directory'])/'report.json'),'--output',str(self.directory/'export'/(self.image.stem+'_measured.ims')),
+                    '--cancel-file',cancel])
             else:
-                self.state.update(status='complete', cells=report['cells'], signals=report['signals'],
-                                  measurements=report['measurements'], image_sha256=report['image_sha256'],
-                                  image=str(Path(report['image']).relative_to(self.directory)),
-                                  scene=str(Path(report['scene']).relative_to(self.directory)),
-                                  files=[str(Path(p).relative_to(self.directory)) for p in report['files']])
+                self.state.update(status='complete',cells=report['cells'],signals=report['signals'],
+                    annotation_run_id=report.get('annotation_run_id'),measurements=report['measurements'],
+                    image_sha256=report['image_sha256'],image=str(Path(report['image']).relative_to(self.directory)),
+                    scene=str(Path(report['scene']).relative_to(self.directory)) if report.get('scene') else None,
+                    files=[str(Path(p).relative_to(self.directory)) for p in report['files']])
                 self._stop()
-                self.completed.emit(dict(self.state, report_path=str(self.directory / 'analysis-result.json')))
+                self.completed.emit(dict(self.state,report_path=str(self.directory/'analysis-result.json')))
         except Exception as exc:
-            self.state.update(status='failed', error=str(exc))
+            self.state.update(status='failed',error=str(exc))
             self._stop()
             self.failed.emit(str(exc))
 

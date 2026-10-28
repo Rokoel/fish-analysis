@@ -11,6 +11,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from .models import Dataset, LibraryEntry, Scene
 from .reader import entry_for_path, load_dataset, scan_library
 from .views import SliceView, VolumeView
+from .display import auto_adjust
 
 
 STYLE = """
@@ -23,8 +24,11 @@ QPushButton:disabled, QToolButton:disabled { color: #63758a; background: #192431
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { background: #0e151e; border: 1px solid #35475c; border-radius: 4px; padding: 5px; }
 QTreeWidget { background: #111821; border: 0; outline: 0; }
 QTreeWidget::item { padding: 5px 3px; }
-QTreeWidget::item:selected { background: #244b50; }
 QTreeWidget::item:hover { background: #1e2c3b; }
+QTreeWidget::item:selected, QTreeWidget::item:selected:!active { background: #fff06a; color: #111821; }
+QTableWidget, QListWidget { selection-background-color: #fff06a; selection-color: #111821; }
+QTableWidget::item:selected, QTableWidget::item:selected:!active,
+QListWidget::item:selected, QListWidget::item:selected:!active { background: #fff06a; color: #111821; }
 QGroupBox { border: 1px solid #304050; border-radius: 6px; margin-top: 12px; padding: 12px 8px 8px; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: #b9cadb; }
 QTabWidget::pane { border: 1px solid #304050; }
@@ -120,7 +124,7 @@ class ChannelPanel(QtWidgets.QGroupBox):
         row = QtWidgets.QHBoxLayout()
         auto = QtWidgets.QPushButton('Auto contrast')
         reset = QtWidgets.QPushButton('Reset')
-        auto.setToolTip('Set black/white levels to the 1st and 99.8th intensity percentiles.')
+        auto.setToolTip('Estimate background and foreground separately; adjust range and gamma without changing pixels.')
         row.addWidget(auto)
         row.addWidget(reset)
         layout.addRow(row)
@@ -179,16 +183,7 @@ class ChannelPanel(QtWidgets.QGroupBox):
         self._update_color()
 
     def auto(self):
-        # Bound percentile work for larger images without copying a complete float volume.
-        sample = self.volume.ravel()[::max(1, self.volume.size // 500_000)]
-        low, high = np.percentile(sample, (1, 99.8))
-        if high <= low:
-            low, high = float(sample.min()), float(sample.max())
-        if high <= low:
-            low, high = max(0, high - 1), max(1, high)
-        self.channel.low, self.channel.high = float(low), float(high)
-        self.channel.brightness = 0
-        self.channel.contrast = self.channel.gamma = 1
+        auto_adjust(self.channel, self.volume)
         self.sync()
         self.changed.emit()
 
@@ -218,8 +213,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._jobs = set()
         self._saved_states = {}
         self._pending_load = False
-        self.pipeline_panel = None
-        self.pipeline_dock = None
         self.neural_panel = None
         self.neural_dock = None
         self.signal_panel = None
@@ -266,7 +259,6 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction('Save view…', self.save_view)
         toolbar.addAction('Load view…', self.load_view)
         toolbar.addSeparator()
-        toolbar.addAction('Contour pipeline…', self.show_pipeline)
         toolbar.addAction('Neural training…', self.show_neural)
         toolbar.addAction('Help', self.show_help)
         QtGui.QShortcut(QtGui.QKeySequence('Tab'), self, activated=lambda: self.switch_mode(not self.mode_3d.isChecked()))
@@ -921,23 +913,6 @@ class MainWindow(QtWidgets.QMainWindow):
             'Save view / Load view store display settings separately. Screenshots export PNG. '
             'Original images and annotation files are never modified.')
 
-    def show_pipeline(self):
-        if self.workflow_dock:self.workflow_dock.hide()
-        if self.signal_dock:self.signal_dock.hide()
-        if self.pipeline_panel is None:
-            from .pipeline.gui import PipelinePanel
-            self.pipeline_dock = QtWidgets.QDockWidget('Classical contour pipeline', self)
-            self.pipeline_dock.setObjectName('contourPipeline')
-            self.pipeline_panel = PipelinePanel(self)
-            self.pipeline_scroll = self.scroll_panel(self.pipeline_panel)
-            self.pipeline_dock.setWidget(self.pipeline_scroll)
-            self.addDockWidget(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, self.pipeline_dock)
-            self.resizeDocks([self.pipeline_dock], [560], QtCore.Qt.Orientation.Vertical)
-            if self.screen().availableGeometry().height() < 900:
-                self.pipeline_dock.setFloating(True)
-                self.fit_floating_dock(self.pipeline_dock)
-        self.pipeline_dock.show()
-        self.pipeline_dock.raise_()
 
     def show_neural(self):
         if self.workflow_dock:self.workflow_dock.hide()
@@ -954,8 +929,6 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.screen().availableGeometry().height() < 900:
                 self.neural_dock.setFloating(True)
                 self.fit_floating_dock(self.neural_dock)
-        if self.pipeline_dock:
-            self.pipeline_dock.hide()
         self.neural_dock.show()
         self.neural_dock.raise_()
 
@@ -974,24 +947,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.neural_panel.load_report()
 
     def auto_select_contours(self):
-        if self.workflow_panel and self.workflow_panel.busy:
-            self.statusBar().showMessage('Wait for the scan workflow to finish, or cancel it first.')
-            return
-        if self.entry is None or self.dataset is None or self._pending_load:
-            self.statusBar().showMessage('Open a scan and wait for it to finish loading first.')
-            return
-        self.show_neural()
-        if self.neural_panel.job:
-            self.neural_panel.show_error('A neural operation is already running. Wait for it or cancel it first.')
-            return
-        from .neural.model_picker import ModelPicker
-        dialog = ModelPicker(self.entry.image, self, preferred=self.neural_panel.model_path.text())
-        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            try:
-                self.neural_panel.apply_to_scan(self.entry, dialog.model_path)
-                self.neural_scroll.verticalScrollBar().setValue(0)
-            except Exception as exc:
-                self.neural_panel.show_error(str(exc))
+        from .analysis.app import AnalysisWindow
+        self.analysis_window = AnalysisWindow()
+        self.analysis_window.show()
+        if self.entry is not None:
+            self.analysis_window.add_paths([self.entry.image])
 
     def open_pipeline_prediction(self, row):
         try:
@@ -1022,7 +982,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.resizeDocks([self.signal_dock], [600], QtCore.Qt.Orientation.Vertical)
             if self.screen().availableGeometry().height() < 900:
                 self.signal_dock.setFloating(True);self.fit_floating_dock(self.signal_dock)
-        for dock in (self.neural_dock,self.pipeline_dock):
+        for dock in (self.neural_dock,):
             if dock:dock.hide()
         self.signal_dock.show();self.signal_dock.raise_()
 
@@ -1039,7 +999,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.screen().availableGeometry().height() < 900:
                 self.workflow_dock.setFloating(True)
                 self.fit_floating_dock(self.workflow_dock)
-        for dock in (self.neural_dock, self.signal_dock, self.pipeline_dock):
+        for dock in (self.neural_dock, self.signal_dock):
             if dock:dock.hide()
         self.workflow_panel.refresh_scan()
         self.workflow_dock.show()
@@ -1094,8 +1054,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event):
         self._generation += 1
-        if self.pipeline_panel:
-            self.pipeline_panel.shutdown()
         if self.neural_panel:
             self.neural_panel.shutdown()
         if self.signal_panel:

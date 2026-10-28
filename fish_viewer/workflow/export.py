@@ -1,8 +1,9 @@
-"""Export byte-identical IMS images with complete native Imaris 6.3.1 scenes."""
+"""Export standalone annotated IMS images and their Excel measurements."""
 import hashlib
-import json
 from pathlib import Path
 import tempfile
+from copy import deepcopy
+from uuid import uuid4
 
 import h5py
 
@@ -11,10 +12,15 @@ from ..pipeline.runner import read_prediction
 from ..pipeline.segmentation import checkpoint
 from ..reader import ImarisReader, load_dataset, entry_for_path
 from .imaris_scene import scene_xml
-from .results import validated_result, write_tables
+from .results import validated_result
 
 
 def _copy_image(source, destination, emit, cancel):
+    if not h5py.is_hdf5(source):
+        from .embedded_export import convert_legacy_image
+        convert_legacy_image(source, destination, emit, cancel)
+        with destination.open('rb') as stream:
+            return hashlib.file_digest(stream, 'sha256').hexdigest()
     before = source.stat()
     total, copied = before.st_size, 0
     digest = hashlib.sha256()
@@ -31,7 +37,7 @@ def _copy_image(source, destination, emit, cancel):
     with destination.open('rb') as stream:
         if hashlib.file_digest(stream, 'sha256').hexdigest() != digest.hexdigest():
             raise ValueError('The exported image differs from its source.')
-    # Replace embedded scene objects with the companion's current annotations.
+    # Replace embedded scene objects with the current annotations in the copy.
     # Copying first preserves all image datasets, acquisition metadata and pyramids.
     embedded = False
     if h5py.is_hdf5(destination):
@@ -65,11 +71,11 @@ def _publish(staging, destinations):
 
 
 def export_result(report_path, target, emit=lambda event: None, cancel=None, source_scene=None):
-    """Publish a new IMS/IMX pair and tables; refuse to overwrite any existing file."""
+    """Publish an annotated IMS and workbook; refuse to overwrite either file."""
     target = Path(target).expanduser().resolve()
     if target.suffix.lower() != '.ims':
         raise ValueError('Choose an export filename ending in .ims.')
-    suffixes = ['.ims', '.imx', '.signals.csv', '.cell-counts.csv', '.annotations.json', '.xlsx']
+    suffixes = ['.ims', '.xlsx']
     destinations = [target.with_suffix(suffix) for suffix in suffixes]
     if any(path.exists() for path in destinations):
         raise FileExistsError('The export would overwrite existing files. Choose a new name or folder.')
@@ -92,41 +98,59 @@ def export_result(report_path, target, emit=lambda event: None, cancel=None, sou
     report['manual_measurements'] = manual_measurements(report, cancel)
     source_entry=LibraryEntry(Path(report['image']),Path(source_scene)) if source_scene else entry_for_path(report['image'])
     original_scene=load_dataset(source_entry).scene
-    combined=None
-    if original_scene.surfaces or original_scene.measurements or original_scene.contours:
-        from ..scenes import parse_scene
-        from copy import deepcopy
-        generated=parse_scene(scene_xml(target.name,surfaces,metadata,report))
-        combined=deepcopy(original_scene)
-        combined.surfaces.extend(generated.surfaces)
-        combined.measurements.extend(generated.measurements)
-    if original_scene.warnings and any('unsupported' in w.lower() or 'not supported' in w.lower() or 'cannot read' in w.lower() for w in original_scene.warnings):
+    from ..scenes import parse_scene
+    from ..annotation_state import split_measurements, timestamp
+    from .edit_export import validate_roundtrip
+    generated = parse_scene(scene_xml(target.name, surfaces, metadata, report))
+    run_id, created_at = str(uuid4()), timestamp()
+    cell_ids = {}
+    ordered_points = []
+    for original, surface in zip(surfaces, generated.surfaces):
+        cell = int(original.name.rsplit(' ', 1)[-1])
+        cell_ids[cell] = surface.uid
+        ordered_points.extend(p for p in report['points'] if p['cell_id'] == cell)
+    for surface in generated.surfaces:
+        surface.source, surface.run_id, surface.created_at = 'program', run_id, created_at
+    for measurement, point in zip(generated.measurements, ordered_points):
+        measurement.source, measurement.run_id, measurement.created_at = 'program', run_id, created_at
+        measurement.cell_uid = cell_ids[point['cell_id']]
+        measurement.channel, measurement.score = point['channel'], point['score']
+    combined = deepcopy(original_scene)
+    split_measurements(combined)
+    imported = {p['signal_id']: p for p in report['manual_measurements']['points']}
+    imported_cells = {s.uid for s in combined.surfaces}
+    for measurement in combined.measurements:
+        row = imported.get(measurement.uid, {})
+        if measurement.cell_uid is None and row.get('cell_id') in imported_cells:
+            measurement.cell_uid = row['cell_id']
+        if measurement.channel is None:
+            measurement.channel = row.get('channel')
+    combined.surfaces.extend(generated.surfaces)
+    combined.measurements.extend(generated.measurements)
+    from .signal_pairs import DEFAULT_MAX_DISTANCE_UM, update_scene_pairs
+    maximum = report.get('signal_pairing', {}).get('maximum_distance_um', DEFAULT_MAX_DISTANCE_UM)
+    report['signal_pairing'] = dict(method='closest_first_one_to_one_per_channel_pair', maximum_distance_um=maximum, unit='um')
+    report['signal_pairs'] = update_scene_pairs(combined, metadata, maximum, run_id)
+    if any(not w.startswith('No saved annotations found.') for w in original_scene.warnings):
         raise ValueError('Some imported annotations could not be read; export cannot safely discard them: '+'; '.join(original_scene.warnings))
     with tempfile.TemporaryDirectory(prefix='.fish-export-', dir=target.parent) as temporary:
         staging = Path(temporary)
         source = Path(report['image'])
-        digest = _copy_image(source, staging / target.name, emit, cancel)
-        if combined is not None:
-            from .edit_export import editable_scene_xml
-            scene_data=editable_scene_xml(target.name,combined,metadata)
-        else: scene_data=scene_xml(target.name,surfaces,metadata,report)
-        (staging / target.with_suffix('.imx').name).write_bytes(scene_data)
-        write_tables(staging, report, target.stem + '.')
+        _copy_image(source, staging / target.name, emit, cancel)
         write_excel(staging / target.with_suffix('.xlsx').name, report)
-        annotation_report = dict(report, engine='fish-scan-export', mode='export', image=target.name, scene=target.with_suffix('.imx').name,
-                                 directory='.', cell_predictions=None, export_format='Imaris IMS + XML IMX',
-                                 source_signal_report=str(Path(report_path).resolve()), image_sha256=digest,
-                                 scene_profile='FISH Imaris 6.3.1 native XML')
-        (staging / target.with_suffix('.annotations.json').name).write_text(json.dumps(annotation_report, indent=2, allow_nan=False), encoding='utf-8')
+        annotation_report = dict(report, engine='fish-scan-export', mode='export', image=target.name, scene=None,
+                                 directory='.', cell_predictions=None, export_format='Standalone Imaris IMS',
+                                 source_signal_report=str(Path(report_path).resolve()),
+                                 scene_profile='Native Imaris Scene/Content and Scene/Data')
+        annotation_report['annotation_run_id'] = run_id
+        from .embedded_export import embed_scene
+        digest = embed_scene(staging / target.name, combined, metadata, annotation_report)
         emit(dict(kind='progress', phase='Verifying exported scene', current=0, total=1))
-        reopened = load_dataset(LibraryEntry(staging / target.name, staging / target.with_suffix('.imx').name))
-        expected_points = len(report['points']) * (2 if report.get('measurement') else 1)
-        expected_lines = len(report['points']) if report.get('measurement') else 0
-        expected_surfaces=len(surfaces)
-        if combined is not None:
-            expected_surfaces=len(combined.surfaces)
-            expected_points=sum(len(m.points) for m in combined.measurements)
-            expected_lines=sum(len(m.edges) for m in combined.measurements)
+        reopened = load_dataset(LibraryEntry(staging / target.name))
+        validate_roundtrip(combined, reopened.scene)
+        expected_surfaces = len(combined.surfaces)
+        expected_points = sum(len(m.points) for m in combined.measurements)
+        expected_lines = sum(len(m.edges) for m in combined.measurements)
         if (len(reopened.scene.surfaces) != expected_surfaces or reopened.scene.warnings
                 or sum(len(group.points) for group in reopened.scene.measurements) != expected_points
                 or sum(len(group.edges) for group in reopened.scene.measurements) != expected_lines):
@@ -134,32 +158,33 @@ def export_result(report_path, target, emit=lambda event: None, cancel=None, sou
         checkpoint(cancel)
         _publish(staging, destinations)
     emit(dict(kind='progress', phase='Export complete', current=1, total=1))
-    return dict(status='complete', image=str(target), scene=str(target.with_suffix('.imx')),
+    return dict(status='complete', image=str(target), scene=None,
                 cells=len(surfaces), signals=len(report['points']), measurements=expected_lines,
-                image_sha256=digest, files=[str(path) for path in destinations])
+                signal_pairs=len(report['signal_pairs']), image_sha256=digest, annotation_run_id=run_id, files=[str(path) for path in destinations])
 
 
 def export_unannotated(source, target, emit=lambda event: None, cancel=None):
-    """Make a new image/empty-scene pair, without copying any source annotations."""
+    """Make a standalone image with an empty scene and no source annotations."""
     source, target = Path(source).expanduser().resolve(), Path(target).expanduser().resolve()
     if target.suffix.lower() != '.ims':
         raise ValueError('Choose an export filename ending in .ims.')
-    destinations = [target, target.with_suffix('.imx')]
+    destinations = [target]
     if any(path.exists() for path in destinations):
         raise FileExistsError('The export would overwrite existing files. Choose a new name or folder.')
     metadata = ImarisReader(source).metadata
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.fish-export-', dir=target.parent) as temporary:
         staging = Path(temporary)
-        digest = _copy_image(source, staging / target.name, emit, cancel)
-        scene = staging / target.with_suffix('.imx').name
-        scene.write_bytes(scene_xml(target.name, [], metadata, dict(points=[])))
-        reopened = load_dataset(LibraryEntry(staging / target.name, scene))
+        _copy_image(source, staging / target.name, emit, cancel)
+        from ..models import Scene
+        from .embedded_export import embed_scene
+        digest = embed_scene(staging / target.name, Scene(), metadata, dict(points=[]))
+        reopened = load_dataset(LibraryEntry(staging / target.name))
         if (reopened.scene.surfaces or reopened.scene.measurements or reopened.scene.contours
                 or reopened.scene.warnings):
             raise ValueError('The unannotated copy failed the reload check.')
         checkpoint(cancel)
         _publish(staging, destinations)
-    return dict(status='complete', image=str(target), scene=str(target.with_suffix('.imx')),
+    return dict(status='complete', image=str(target), scene=None,
                 cells=0, signals=0, source=str(source), image_sha256=digest,
                 files=[str(path) for path in destinations])

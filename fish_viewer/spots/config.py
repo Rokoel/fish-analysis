@@ -42,7 +42,7 @@ class CenterConfig:
 def read_model(directory):
     directory = Path(directory)
     manifest = json.loads((directory / 'signal-model.json').read_text())
-    if manifest.get('version') != 1 or manifest.get('engine') not in ('signal-center-unet3d', 'signal-spotiflow3d'):
+    if manifest.get('version') != 1 or manifest.get('engine') not in ('signal-center-unet3d',):
         raise ValueError('Choose a direct 3D signal-center model.')
     CenterConfig(**manifest['config']).validate()
     if manifest.get('checkpoint') != 'best.pt' or not (directory / 'best.pt').is_file():

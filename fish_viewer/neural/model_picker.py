@@ -23,38 +23,22 @@ def read_model(path):
 
 
 def discover_models(roots=None):
-    if roots is None:
-        roots = [ROOT / 'models', ROOT / 'neural_runs', Path.cwd() / 'neural_runs']
     found = {}
-    for root in roots:
+    for root in roots or [ROOT / 'models']:
         for manifest in Path(root).glob('**/fish-model.json'):
             path = manifest.parent.resolve()
             if any(word in str(path.relative_to(Path(root).resolve())).lower() for word in ('smoke', 'gpu-check')):
                 continue
             try:
                 read_model(path)
-                if path.parent == (ROOT / 'models').resolve():
-                    found[path] = {
-                        'cells': 'Balanced StarDist 3D',
-                        'cells-conservative': 'Conservative StarDist 3D',
-                        'cells-sensitive': 'Sensitive StarDist 3D',
-                        'cells-preprocessed': 'Preprocessed StarDist 3D',
-                    }.get(path.name, path.name)
-                    continue
-                report = json.loads((path.parent / 'report.json').read_text())
-                if report.get('status') != 'complete' or report.get('mode') != 'train':
-                    continue
-                family = next((label for key, label in (
-                    ('balanced-fish', 'Balanced collection'), ('precision-fish', 'Conservative collection'),
-                    ('full-fish', 'Original full collection')) if key in path.parts), 'Saved model')
-                count = len(report.get('epochs', []))
-                found[path] = f'{family} · {count} epochs · {path.parent.name}'
+                if path.parent != (ROOT / 'models').resolve():
+                    report=json.loads((path.parent/'report.json').read_text())
+                    if report.get('status')!='complete' or report.get('mode')!='train':
+                        continue
             except (OSError, ValueError, KeyError, TypeError):
                 continue
-    # Put the completed balanced collection first; list newer runs first within families.
-    return sorted(found.items(), key=lambda pair: (
-        0 if pair[0].name == 'cells' or 'balanced-fish' in pair[0].parts else 1 if pair[0].name == 'cells-conservative' or 'precision-fish' in pair[0].parts else 2,
-        -pair[0].stat().st_mtime))
+            found[path] = 'Consensus StarDist detector' if path.name == 'cells-sensitive' else path.name
+    return sorted(found.items(), key=lambda pair: str(pair[0]))
 
 
 class ModelPicker(QtWidgets.QDialog):

@@ -116,7 +116,7 @@ class WorkflowPanel(QtWidgets.QWidget):
         self.export_button = QtWidgets.QPushButton('Export current result as Imaris…')
         self.export_button.clicked.connect(self.export_current)
         layout.addWidget(self.export_button)
-        export_note = QtWidgets.QLabel('Export creates an unchanged .ims image and an .imx scene using the Imaris 6.3.1 structure from FISH, plus CSV counts and scores. Keep the pair together. Open the .imx in Imaris to load the contours and signals; the .ims contains the image only.')
+        export_note = QtWidgets.QLabel('Export creates a standalone .ims containing the image and all annotations, plus an Excel workbook of cell volumes and distances.')
         export_note.setWordWrap(True)
         layout.addWidget(export_note)
         layout.addStretch()
@@ -156,7 +156,7 @@ class WorkflowPanel(QtWidgets.QWidget):
     def check_ready(self):
         if self.busy:
             raise ValueError('The scan workflow is already running.')
-        if any(panel and panel.job for panel in (self.host.neural_panel, self.host.signal_panel, self.host.pipeline_panel)):
+        if any(panel and panel.job for panel in (self.host.neural_panel, self.host.signal_panel)):
             raise ValueError('Wait for the current processing job to finish, or cancel it first.')
         if self.host.entry is None or self.host.dataset is None or self.host._pending_load:
             raise ValueError('Open a scan and wait for it to load first.')
@@ -324,7 +324,7 @@ class WorkflowPanel(QtWidgets.QWidget):
                 self.stage_label.setText('Export complete')
                 self.summary.setText(f'{report["cells"]} cells · {report["signals"]} signals\nImaris image, scene, count tables and annotations exported.')
                 self.result_location.setText(report['image'])
-                entry = LibraryEntry(Path(report['image']), Path(report['scene']))
+                entry = LibraryEntry(Path(report['image']), Path(report['scene']) if report.get('scene') else None)
                 self.host.add_entries([entry])
                 self.host.load_entry(entry)
                 self.host.workflow_dock.hide()

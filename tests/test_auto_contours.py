@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from fish_viewer.neural.config import NeuralConfig
-from fish_viewer.neural.precision import balanced_preset, evidence_preset
+from fish_viewer.neural.precision import evidence_preset
 
 
 def test_bundled_models_remain_discoverable_without_historical_runs():
@@ -14,13 +14,13 @@ def test_bundled_models_remain_discoverable_without_historical_runs():
     from fish_viewer.project_paths import ROOT
 
     models = dict(discover_models([ROOT / 'models']))
-    assert {path.name for path in models} == {'cells', 'cells-conservative', 'cells-sensitive', 'cells-preprocessed'}
-    assert discover_models([ROOT / 'models'])[0][0].name == 'cells'
+    assert {path.name for path in models} == {'cells-sensitive'}
+    assert discover_models([ROOT / 'models'])[0][0].name == 'cells-sensitive'
 
 
 def saved_model(path, status='complete'):
     path.mkdir(parents=True)
-    config = replace(balanced_preset(NeuralConfig()), probability_threshold=.65, membrane_support=.6)
+    config = replace(replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.65,max_elongation=1.8), probability_threshold=.65, membrane_support=.6)
     (path / 'fish-model.json').write_text(json.dumps(dict(version=1, engine='stardist3d', config=asdict(config), checkpoint='best.weights.h5')))
     (path / 'best.weights.h5').write_bytes(b'test checkpoint placeholder')
     (path.parent / 'report.json').write_text(json.dumps(dict(status=status, mode='train', epochs=[dict(epoch=1)])))
@@ -33,7 +33,7 @@ def test_visible_elongated_cell_passes_without_roundness_but_empty_mask_does_not
     radius = np.sqrt((grid[0] / 2.2) ** 2 + grid[1] ** 2 + grid[2] ** 2)
     labels = (radius < 3).astype(np.uint32)
     prepared = SimpleNamespace(image=np.exp(-((radius - 3) / .25) ** 2), spacing=(.3,) * 3, origin=(0.,) * 3)
-    assert not filter_instances(labels, prepared, balanced_preset(NeuralConfig())).cells
+    assert not filter_instances(labels, prepared, replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.65,max_elongation=1.8)).cells
     config = evidence_preset(NeuralConfig())
     assert len(filter_instances(labels, prepared, config).cells) == 1
     for intensity in (0., .01, 1.):
@@ -55,8 +55,8 @@ def test_old_models_keep_historical_shape_policy():
 @pytest.mark.gui
 def test_model_picker_lists_completed_models_and_rejects_missing_checkpoint(qapp, tmp_path):
     from fish_viewer.neural.model_picker import ModelPicker, discover_models
-    balanced = saved_model(tmp_path / 'balanced-fish' / 'run' / 'model')
-    saved_model(tmp_path / 'precision-fish' / 'run' / 'model')
+    balanced = saved_model(tmp_path / 'training-one' / 'run' / 'model')
+    saved_model(tmp_path / 'training-two' / 'run' / 'model')
     saved_model(tmp_path / 'cancelled' / 'run' / 'model', 'cancelled')
     saved_model(tmp_path / 'smoke' / 'run' / 'model')
     assert len(discover_models([tmp_path])) == 2

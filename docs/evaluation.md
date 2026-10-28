@@ -1,64 +1,53 @@
-# Reading the evaluation reports
+# Evaluation and reports
 
-[Documentation](README.md) · [Model inventory](models.md)
+[Documentation](README.md)
 
-Reports are grouped by experiment under `reports/`. Each experiment has its own
-checkpoint, acceptance settings, matching rules and denominator. A score from
-one experiment does not describe every current Analysis preset.
+The local checkout contains exactly three report bundles:
 
-## Where to start
+1. The combined historical report (`reports/combined/`), consolidating fourteen old
+   experiments and unique evidence. It is deliberately ignored by Git and excluded
+   from release source bundles, so it is available only in local checkouts that
+   generated it.
+2. [Latest consensus roundness evaluation](../reports/consensus-roundness-20261028/README.md).
+3. [Fine-tuned StarDist evaluation](../reports/stardist2d/README.md), including its
+   signal-to-border distance evaluation in the same narrative.
 
-| Question | Report |
-|---|---|
-| How did the signal detectors compare with fixed cell masks? | [Signal centers](../reports/signal-centers/README.md) |
-| What changed with corrected channel roles and consensus? | [Correct-channel consensus](../reports/consensus-correct-channels/README.md) |
-| How did the former center/box default perform across held-out scans? | [All-held-out comparison](../reports/all-heldout-comparison/README.md) |
-| What did crop contours and boundary refinement change? | [Center/box](../reports/center-box-contours/README.md), [boundary refinement](../reports/boundary-refinement/README.md) |
-| Did surface losses reduce volume/boundary bias? | [Contour bias](../reports/contour-bias/README.md) |
-| Did preprocessing or linked 2D contours help? | [Preprocessing](../reports/preprocessed-stardist/README.md), [StarDist 2D](../reports/stardist2d/README.md) |
-| What are the historical physical measurement errors? | [Measurement accuracy](measurement-accuracy.md) |
+Historical models, channels, thresholds and cohorts retain their original labels.
+Do not pool different experiments or treat them as new current-default results.
+In particular, repeated exploratory use of a test fold is not prospective validation.
 
-## Current cell-pipeline measurements
+## Metrics
 
-![Consensus and fine-tuned StarDist 2D measurement errors](images/pipeline-comparison.png)
+Cell matches are one-to-one whole-object IoU ≥0.5. Unknown/unannotated objects stay
+unscored, so unmatched detections do not establish field precision. Primary volume
+errors exclude truncated manual cells. Distances compare actual manual A–B lines
+with same-cell, same-channel detected signals matched within 0.6 µm. Ambiguous manual
+assignments and conflicting A–B lines are excluded and counted. Missing measurements
+are not invented. Conditional error metrics must be interpreted alongside retained
+cell counts, manual-match counts and matched-subset overlap.
 
-This chart uses the test summaries from
-[correct-channel consensus](../reports/consensus-correct-channels/summary.json)
-and [fine-tuned StarDist 2D distances](../reports/stardist2d/distances/report.json).
-Both cover 71 historical test scans, the signal-center U-Net and a 0.72 roundness
-gate. Each bar states its matched population; whiskers are 95% acquisition-bootstrap
-intervals. The reports use different channel protocols and match different cells
-and signals. They do not form a paired comparison or establish whole-field detection
-accuracy. Rebuild the figure with `scripts/plot_pipeline_comparison.py`.
+Reports include volume MAPE, distance MAE and other error summaries. Acquisition-group
+bootstrap intervals preserve acquisition dependence. Completeness checks refuse to
+publish a partial scan/pipeline or scan/roundness comparison. Model/input identities
+and hashes are recorded. Changing a rejection threshold does not improve surviving
+contours; common-subset comparisons separate rejection from geometry changes.
 
-## Historical signal comparison
+## Reusable commands
 
-![Fixed-mask signal model comparison](images/signal-models.png)
+Supply a completed calibrated audit and explicit output locations:
 
-This plot uses the **test** rows from
-[`comparison.json`](../reports/signal-centers/comparison.json): 228 manual signal
-references, fixed cell masks, and the experiment's cell/channel matching rules.
-Precision and recall describe eligible annotated regions. Unmarked regions are
-unknown and cannot establish whole-scan precision. This is a detector comparison,
-not an end-to-end score for the current default consensus pipeline.
+```sh
+python scripts/benchmark_all_heldout.py --audit /data/audit/audit.json --output /results/two-pipelines --device auto
+python scripts/benchmark_stardist2d_distances.py --audit /data/audit/audit.json --output /results/stardist2d
+python scripts/benchmark_consensus_roundness.py --audit /data/audit/audit.json --work /scratch/roundness --output /results/roundness
+```
 
-## Interpret the denominators
+The roundness benchmark compares 50%, 75%, 80%, 82% and 85%; these research thresholds
+can be lower than the UI's 75% minimum. An optional `--channel-audit` supplies reviewed
+channel metadata. No command requires deleted historical training directories.
+The held-out benchmark runs both supported pipelines at 82% by default. Only image
+export is omitted; normal inference and measurement workers run unchanged.
 
-- **Cell overlap:** complete manual references are matched one-to-one. Cut cells
-  and unmatched detections have different scoring roles; inspect the protocol.
-- **Volume and boundary error:** often reported only for matched cells. Better
-  error on fewer matches may reflect a changed cohort.
-- **Signal localization:** requires the same predicted cell and inferred channel,
-  within the declared matching radius.
-- **A–B distance:** the shortest physical distance from a signal center to its
-  cell's triangle surface. It depends on both signal location and cell geometry.
-- **Detection totals:** incomplete annotation means extra cells are often unscored,
-  rather than proven false positives.
-
-Synthetic empty controls test specific failure modes. They do not replace
-reviewing real-image predictions. Training curves document optimization and
-checkpoint selection; use separate held-out comparisons to assess generalization.
-
-The JSON/CSV tables, Excel workbooks and figures bundled with the release are
-preserved. Historical generated run folders were removed; see
-[training-data reconstruction](training-data.md) for the retained metadata.
+`evaluate_cell_centers.py`, `evaluate_cell_contours.py` and `evaluate_signal_centers.py`
+provide focused checks on explicit predictions/data. `audit_files.py --pixels`
+validates scan decoding at all stored resolutions and times without changing sources.

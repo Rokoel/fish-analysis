@@ -66,7 +66,7 @@ def benchmark(model,cases,directory,threshold,config):
 def main():
     restart_cuda()
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--audit',type=Path,default=ROOT/'artifacts/preprocessed-stardist-stain-aware-20261010/audit/audit.json')
+    parser.add_argument('--audit',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True);parser.add_argument('--epochs',type=int,default=40)
     parser.add_argument('--steps',type=int,default=100);parser.add_argument('--device',default='gpu',choices=['gpu','cpu'])
     parser.add_argument('--evaluate-only',action='store_true')
@@ -135,7 +135,7 @@ def main():
     model=StarDist2D(None,name='model',basedir=str(args.output));model.load_weights('best.weights.h5')
     from fish_viewer.neural.config import NeuralConfig
     from fish_viewer.neural.precision import evidence_preset
-    config=evidence_preset(NeuralConfig.from_dict(json.loads((ROOT/'models/cells-preprocessed/fish-model.json').read_text())['config']))
+    config=evidence_preset(NeuralConfig.from_dict(json.loads((ROOT/'models/cells-stardist2d/fish-model.json').read_text())['acceptance_config']))
     manifest=json.loads((model_dir/'fish-model.json').read_text())
     from fish_viewer.neural.preprocessing import RECIPE
     manifest['preprocessing_recipe']=RECIPE

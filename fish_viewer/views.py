@@ -7,6 +7,7 @@ from pyvistaqt import QtInteractor
 
 from .models import Dataset, composite_slice
 
+SELECTED_COLOR = '#fff06a'
 
 def mesh_for(surface):
     faces = np.column_stack((np.full(len(surface.triangles), 3), surface.triangles))
@@ -40,12 +41,15 @@ def clip_segment(a, b, axis, center, half_width):
 class SliceView(QtWidgets.QGraphicsView):
     stepped = QtCore.Signal(int)
     overlays_updated = QtCore.Signal()
+    MAX_VOXEL_PIXELS = 256
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setScene(QtWidgets.QGraphicsScene(self))
         self.setBackgroundBrush(QtGui.QColor('#080c13'))
         self.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        self.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+        self.interpolation = True
         self.setDragMode(self.DragMode.ScrollHandDrag)
         self.setTransformationAnchor(self.ViewportAnchor.AnchorUnderMouse)
         self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -54,11 +58,15 @@ class SliceView(QtWidgets.QGraphicsView):
         self.axis = 0  # numpy ZYX axis
         self.index = 0
         self.selected = None
+        self.selected_objects = set()
         self.surfaces_visible = self.markers_visible = self.lines_visible = True
         self._image_item = None
         self._overlays = []
         self._cuts = {}
         self._rect = QtCore.QRectF()
+
+    def is_selected(self, kind, index):
+        return self.selected == (kind, index) or (kind, index) in self.selected_objects
 
     def set_dataset(self, dataset: Dataset):
         self.scene().clear()
@@ -69,6 +77,7 @@ class SliceView(QtWidgets.QGraphicsView):
         self._cuts.clear()
         self.index = dataset.volumes[0].shape[self.axis] // 2
         self.selected = None
+        self.selected_objects = set()
         self.update_image()
         self.fit()
 
@@ -80,6 +89,40 @@ class SliceView(QtWidgets.QGraphicsView):
     @property
     def projection_axes(self):
         return {0: (0, 1), 1: (0, 2), 2: (1, 2)}[self.axis]
+
+    def visible_slice_for_surface(self, index):
+        """Find the nearest slice intersecting this cell's actual triangles."""
+        surface = self.dataset.scene.surfaces[index]
+        if not self.surfaces_visible or not surface.visible or surface.time != self.dataset.time:
+            return None
+        axis = 2 - self.axis
+        origin, spacing = self.dataset.center_origin[axis], self.dataset.spacing[axis]
+        positions = (surface.vertices[:, axis] - origin) / spacing
+        first = max(0, int(np.ceil(positions.min())))
+        last = min(self.dataset.volumes[0].shape[self.axis] - 1, int(np.floor(positions.max())))
+        for candidate in sorted(range(first, last + 1), key=lambda value: abs(value - self.index)):
+            key = (index, self.axis, candidate)
+            segments = self._cuts.get(key)
+            if segments is None:
+                segments = slice_segments(self.meshes[index], axis, origin + candidate * spacing)
+            if segments.size:
+                self._cuts[key] = segments
+                return candidate
+        return None
+
+    def visible_slice_for_point(self, point):
+        """Keep a visible signal in place, or find the slice containing it."""
+        axis = 2 - self.axis
+        spacing = self.dataset.spacing[axis]
+        coordinate = point[axis]
+        if abs(coordinate - self.coordinate) <= spacing / 2:
+            return self.index
+        position = (coordinate - self.dataset.center_origin[axis]) / spacing
+        last = self.dataset.volumes[0].shape[self.axis] - 1
+        candidate = int(np.clip(round(position), 0, last))
+        if abs(position - candidate) <= .5:
+            return candidate
+        return None
 
     def update_image(self):
         if self.dataset is None:
@@ -96,6 +139,8 @@ class SliceView(QtWidgets.QGraphicsView):
         sx, sy = self.dataset.spacing[u], self.dataset.spacing[v]
         ox, oy = self.dataset.metadata.origin[u], self.dataset.metadata.origin[v]
         self._image_item.setTransform(QtGui.QTransform.fromScale(sx, sy))
+        self._image_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation
+                                              if self.interpolation else QtCore.Qt.TransformationMode.FastTransformation)
         self._image_item.setPos(ox, oy)
         self._rect = QtCore.QRectF(ox, oy, width * sx, height * sy)
         self.setSceneRect(self._rect.adjusted(-sx, -sy, sx, sy))
@@ -124,10 +169,17 @@ class SliceView(QtWidgets.QGraphicsView):
                 for a, b in self._cuts[key]:
                     path.moveTo(float(a[u]), float(a[v]))
                     path.lineTo(float(b[u]), float(b[v]))
-                color = '#4ee5c3' if self.selected == ('surface', i) else QtGui.QColor.fromRgbF(*surface.color)
+                selected = self.is_selected('surface', i)
+                color = SELECTED_COLOR if selected else QtGui.QColor.fromRgbF(*surface.color)
                 pen = QtGui.QPen(color)
-                pen.setWidthF(2.5 if self.selected == ('surface', i) else 1.4)
+                pen.setWidthF(4 if selected else 1.4)
                 pen.setCosmetic(True)
+                if selected:
+                    halo = QtGui.QPen(QtGui.QColor('#000000'), 8)
+                    halo.setCosmetic(True)
+                    backing = self.scene().addPath(path, halo)
+                    backing.setData(1, ('surface', i))
+                    self._overlays.append(backing)
                 item = self.scene().addPath(path, pen)
                 item.setData(0, ('surface', i))
                 self._overlays.append(item)
@@ -142,10 +194,18 @@ class SliceView(QtWidgets.QGraphicsView):
                         p, q = clipped
                         path.moveTo(float(p[u]), float(p[v]))
                         path.lineTo(float(q[u]), float(q[v]))
-                pen = QtGui.QPen(QtGui.QColor('#4ee5c3') if self.selected == ('contour', i) else QtGui.QColor.fromRgbF(*contour.color))
-                pen.setWidthF(2)
+                selected = self.is_selected('contour', i)
+                pen = QtGui.QPen(QtGui.QColor(SELECTED_COLOR) if selected else QtGui.QColor.fromRgbF(*contour.color))
+                pen.setWidthF(4 if selected else 2)
                 pen.setCosmetic(True)
-                pen.setStyle(QtCore.Qt.PenStyle.DashLine)
+                if selected:
+                    halo = QtGui.QPen(QtGui.QColor('#000000'), 8)
+                    halo.setCosmetic(True)
+                    backing = self.scene().addPath(path, halo)
+                    backing.setData(1, ('contour', i))
+                    self._overlays.append(backing)
+                else:
+                    pen.setStyle(QtCore.Qt.PenStyle.DashLine)
                 item = self.scene().addPath(path, pen)
                 item.setData(0, ('contour', i))
                 self._overlays.append(item)
@@ -153,9 +213,10 @@ class SliceView(QtWidgets.QGraphicsView):
             if not measure.visible:
                 continue
             visible = [measure.all_times or t == self.dataset.time for t in measure.times]
-            color = QtGui.QColor('#4ee5c3') if self.selected == ('measurement', i) else QtGui.QColor.fromRgbF(*measure.color)
+            selected = self.is_selected('measurement', i)
+            color = QtGui.QColor(SELECTED_COLOR) if selected else QtGui.QColor.fromRgbF(*measure.color)
             pen = QtGui.QPen(color)
-            pen.setWidthF(1.6)
+            pen.setWidthF(4 if selected else 1.6)
             pen.setCosmetic(True)
             if self.lines_visible:
                 for a, b in measure.edges:
@@ -164,27 +225,48 @@ class SliceView(QtWidgets.QGraphicsView):
                     clipped = clip_segment(measure.points[a], measure.points[b], xyz_axis, coordinate, half)
                     if clipped is not None:
                         p, q = clipped
-                        self._overlays.append(self.scene().addLine(float(p[u]), float(p[v]), float(q[u]), float(q[v]), pen))
+                        if selected:
+                            halo = QtGui.QPen(QtGui.QColor('#000000'), 8)
+                            halo.setCosmetic(True)
+                            self._overlays.append(self.scene().addLine(float(p[u]), float(p[v]), float(q[u]), float(q[v]), halo))
+                        line = self.scene().addLine(float(p[u]), float(p[v]), float(q[u]), float(q[v]), pen)
+                        line.setData(0, ('measurement', i))
+                        self._overlays.append(line)
             if self.markers_visible:
                 for j, point in enumerate(measure.points):
                     if not visible[j] or abs(point[xyz_axis] - coordinate) > half:
                         continue
-                    marker = QtWidgets.QGraphicsEllipseItem(-4, -4, 8, 8)
+                    radius = 6 if selected else 4
+                    marker = QtWidgets.QGraphicsEllipseItem(-radius, -radius, 2 * radius, 2 * radius)
                     marker.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
                     marker.setPen(pen)
+                    if selected:
+                        marker.setBrush(QtGui.QColor('#000000'))
+                        marker.setZValue(5)
                     marker.setPos(float(point[u]), float(point[v]))
                     marker.setData(0, ('measurement', i))
                     self.scene().addItem(marker)
                     self._overlays.append(marker)
-                    if self.selected == ('measurement', i):
-                        label = QtWidgets.QGraphicsSimpleTextItem(measure.labels[j])
-                        label.setBrush(color)
+                    if self.is_selected('measurement', i):
+                        from html import escape
+                        label = QtWidgets.QGraphicsTextItem()
+                        label.setHtml('<span style="color:#ffffff;background-color:#000000;font-weight:bold;">'
+                                      + escape(measure.labels[j]) + '</span>')
                         label.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
                         label.setPos(float(point[u]), float(point[v]))
+                        label.setZValue(6)
                         self.scene().addItem(label)
                         self._overlays.append(label)
         self.viewport().update()
         self.overlays_updated.emit()
+
+    def set_interpolation(self, enabled):
+        self.interpolation = bool(enabled)
+        self.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform, self.interpolation)
+        if self._image_item is not None:
+            self._image_item.setTransformationMode(QtCore.Qt.TransformationMode.SmoothTransformation
+                                                  if enabled else QtCore.Qt.TransformationMode.FastTransformation)
+        self.viewport().update()
 
     def fit(self):
         if not self._rect.isEmpty():
@@ -192,11 +274,40 @@ class SliceView(QtWidgets.QGraphicsView):
 
     def wheelEvent(self, event):
         if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
-            factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
-            self.scale(factor, factor)
+            delta = event.angleDelta().y()
+            if delta and self.dataset is not None:
+                self.zoom_at(event.position().toPoint(), 1.2 if delta > 0 else 1 / 1.2)
         else:
             self.stepped.emit(1 if event.angleDelta().y() > 0 else -1)
         event.accept()
+
+    def zoom_at(self, position, factor):
+        """Keep the cursor anchored and avoid overflowing Qt's integer scrollbars."""
+        current = abs(self.transform().m11())
+        if current <= 0 or not np.isfinite(current):
+            return
+        u, v = self.projection_axes
+        fit = min(self.viewport().width() / self._rect.width(),
+                  self.viewport().height() / self._rect.height())
+        maximum = max(fit, self.MAX_VOXEL_PIXELS / max(self.dataset.spacing[u], self.dataset.spacing[v]))
+        # Qt caps scrollbar positions at INT_MAX; include absolute coordinates
+        # because stage coordinates may be far from zero, even for a small scan.
+        bounds = self.sceneRect()
+        coordinate = max(abs(bounds.left()), abs(bounds.right()), abs(bounds.top()), abs(bounds.bottom()))
+        if coordinate:
+            maximum = min(maximum, 2**29 / coordinate)
+        target = max(current, min(current * factor, maximum)) if factor > 1 else min(current, max(current * factor, fit * .02))
+        if np.isclose(target, current, rtol=1e-12, atol=0):
+            return
+        before = self.mapToScene(position)
+        anchor = self.transformationAnchor()
+        self.setTransformationAnchor(self.ViewportAnchor.NoAnchor)
+        try:
+            self.scale(target / current, target / current)
+            after = self.mapToScene(position)
+            self.translate(after.x() - before.x(), after.y() - before.y())
+        finally:
+            self.setTransformationAnchor(anchor)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -231,10 +342,12 @@ class VolumeView(QtWidgets.QWidget):
         self.plotter.set_background('#080c13')
         self.dataset = None
         self.selected = None
+        self.selected_objects = set()
         self.surfaces_visible = self.markers_visible = self.lines_visible = True
         self.surface_opacity = 0.32
         self.volume_opacity = 0.25
         self.full_detail = False
+        self.interpolation = True
         self.wireframe = False
         self._volume = None
         self._grid = None
@@ -242,9 +355,13 @@ class VolumeView(QtWidgets.QWidget):
         self._annotation_actors = []
         self._stride = 1
 
+    def is_selected(self, kind, index):
+        return self.selected == (kind, index) or (kind, index) in self.selected_objects
+
     def set_dataset(self, dataset: Dataset):
         self.dataset = dataset
         self.selected = None
+        self.selected_objects = set()
         self.plotter.clear()
         self._mesh_actors = []
         self._annotation_actors = []
@@ -252,7 +369,7 @@ class VolumeView(QtWidgets.QWidget):
         self._grid = None
         self.update_volume()
         for surface in dataset.scene.surfaces:
-            display_mesh = mesh_for(surface).clean().smooth_taubin(n_iter=15, pass_band=.12)
+            display_mesh = mesh_for(surface).clean()
             actor = self.plotter.add_mesh(display_mesh, color=surface.color,
                 opacity=self.surface_opacity, smooth_shading=True, render=False,
                 show_scalar_bar=False, pickable=True)
@@ -302,7 +419,18 @@ class VolumeView(QtWidgets.QWidget):
         transfer.RemoveAllPoints()
         transfer.AddPoint(0, 0)
         transfer.AddPoint(255, self.volume_opacity)
+        self.set_interpolation(self.interpolation)
         self.plotter.render()
+
+    def set_interpolation(self, enabled):
+        self.interpolation = bool(enabled)
+        if self._volume is not None:
+            prop = self._volume.GetProperty()
+            if enabled:
+                prop.SetInterpolationTypeToLinear()
+            else:
+                prop.SetInterpolationTypeToNearest()
+            self.plotter.render()
 
     def update_annotations(self):
         if self.dataset is None:
@@ -310,8 +438,9 @@ class VolumeView(QtWidgets.QWidget):
         for i, (actor, surface) in enumerate(zip(self._mesh_actors, self.dataset.scene.surfaces)):
             actor.SetVisibility(self.surfaces_visible and surface.visible and surface.time == self.dataset.time)
             prop = actor.GetProperty()
-            prop.SetOpacity(self.surface_opacity)
-            prop.SetColor((0.3, 0.95, 0.8) if self.selected == ('surface', i) else surface.color)
+            selected = self.is_selected('surface', i)
+            prop.SetOpacity(max(.6, self.surface_opacity) if selected else self.surface_opacity)
+            prop.SetColor((1., .94, .42) if selected else surface.color)
             if self.wireframe:
                 prop.SetRepresentationToWireframe()
             else:
@@ -323,19 +452,20 @@ class VolumeView(QtWidgets.QWidget):
             for i, contour in enumerate(self.dataset.scene.contours):
                 if contour.visible:
                     curve = pv.lines_from_points(contour.vertices(self.dataset.metadata), close=True)
-                    actor = self.plotter.add_mesh(curve, color='#4ee5c3' if self.selected == ('contour', i) else contour.color,
-                        line_width=2, render=False, reset_camera=False)
+                    actor = self.plotter.add_mesh(curve, color=SELECTED_COLOR if self.is_selected('contour', i) else contour.color,
+                        line_width=5 if self.is_selected('contour', i) else 2, render=False, reset_camera=False)
                     self._annotation_actors.append(actor)
         for i, measure in enumerate(self.dataset.scene.measurements):
             if not measure.visible:
                 continue
-            color = '#4ee5c3' if self.selected == ('measurement', i) else measure.color
+            selected = self.is_selected('measurement', i)
+            color = SELECTED_COLOR if selected else measure.color
             visible = np.asarray([measure.all_times or t == self.dataset.time for t in measure.times])
             if self.markers_visible and visible.any():
-                actor = self.plotter.add_points(measure.points[visible], color=color, point_size=9,
+                actor = self.plotter.add_points(measure.points[visible], color=color, point_size=16 if selected else 9,
                     render_points_as_spheres=True, render=False, show_scalar_bar=False, reset_camera=False)
                 self._annotation_actors.append(actor)
-                if self.selected == ('measurement', i) and measure.labels == ['A', 'B']:
+                if self.is_selected('measurement', i) and measure.labels == ['A', 'B']:
                     actor = self.plotter.add_point_labels(measure.points[visible],
                         [text for text, shown in zip(measure.labels, visible) if shown],
                         font_size=15, text_color='#e6fff8', show_points=False,
@@ -346,9 +476,9 @@ class VolumeView(QtWidgets.QWidget):
                 pairs = [(a, b) for a, b in measure.edges if visible[a] and visible[b]]
                 if pairs:
                     segments = np.asarray([[measure.points[a], measure.points[b]] for a, b in pairs]).reshape(-1, 3)
-                    actor = self.plotter.add_lines(segments, color=color, width=2, connected=False)
+                    actor = self.plotter.add_lines(segments, color=color, width=5 if selected else 2, connected=False)
                     self._annotation_actors.append(actor)
-                    if self.selected == ('measurement', i) and measure.labels == ['A', 'B']:
+                    if self.is_selected('measurement', i) and measure.labels == ['A', 'B']:
                         # A/B can be closer together on screen than the width of
                         # a distance label. Keep the value away from their markers.
                         actor = self.plotter.add_text(f'A-B: {measure.length:.3f} {self.dataset.metadata.unit}',

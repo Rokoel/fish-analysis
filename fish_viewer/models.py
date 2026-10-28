@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 
@@ -37,6 +38,12 @@ class Surface:
     time: int = 0
     visible: bool = True
     source: str = 'manual'
+    uid: str = field(default_factory=lambda: str(uuid4()))
+    run_id: str | None = None
+    created_at: str | None = None
+    edited: bool = False
+    native_id: str | None = None
+    native_xml: bytes | None = None
 
 
 @dataclass
@@ -50,6 +57,16 @@ class Measurement:
     visible: bool = True
     all_times: bool = True
     source: str = 'manual'
+    uid: str = field(default_factory=lambda: str(uuid4()))
+    cell_uid: str | None = None
+    run_id: str | None = None
+    created_at: str | None = None
+    edited: bool = False
+    channel: int | None = None
+    score: float | None = None
+    native_xml: bytes | None = None
+    kind: str = 'signal'
+    signal_uids: list[str] = field(default_factory=list)
 
     @property
     def length(self) -> float:
@@ -68,6 +85,11 @@ class Contour:
     source: str = 'manual'
 
     native_xml: bytes | None = None
+    uid: str = field(default_factory=lambda: str(uuid4()))
+    run_id: str | None = None
+    created_at: str | None = None
+    edited: bool = False
+    native_name: str | None = None
 
     def vertices(self, metadata) -> np.ndarray:
         result = np.empty((len(self.points), 3), dtype=np.float64)

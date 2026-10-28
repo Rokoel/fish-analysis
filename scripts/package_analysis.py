@@ -44,57 +44,15 @@ def main():
     (destination / 'README.md').write_text(re.sub(r'\]\(([^)]+)\)',guide_link,guide),encoding='utf-8')
     for name in ('scripts', 'docs', 'reports', 'tests', 'packaging'):
         shutil.copytree(ROOT / name, destination / name,
-                        ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+                        ignore=lambda folder, names: [n for n in names if n in ('__pycache__', 'combined') or n.endswith('.pyc')])
     provenance = {}
-    model_sources = [('cells', ROOT / 'models/cells'), ('cells-conservative', ROOT / 'models/cells-conservative'),
-                     ('signals', ROOT / 'models/signals')]
-    from fish_viewer.boundary.model import read_model as read_boundary_model
-    read_boundary_model(ROOT / 'models/boundary-annotations')
-    model_sources.append(('boundary-annotations', ROOT / 'models/boundary-annotations'))
-    check_models(ROOT / 'models/cells-sensitive', signals)
-    model_sources.append(('cells-sensitive', ROOT / 'models/cells-sensitive'))
-    baseline_signals = ROOT / 'models/signals-base'
-    if (baseline_signals / 'signal-model.json').is_file():
-        model_sources.append(('signals-base', baseline_signals))
-    refreshed_signals = ROOT / 'models/signals-refreshed'
-    if (refreshed_signals / 'signal-model.json').is_file():
-        model_sources.append(('signals-refreshed', refreshed_signals))
-    for label in ('signals-center-unet', 'signals-spotiflow'):
-        source = ROOT / 'models' / label
-        if (source / 'signal-model.json').is_file():
-            from fish_viewer.signals.model import read_model as read_signal_model
-            read_signal_model(source)
-            model_sources.append((label, source))
-    boundary = default_refinement_model()
-    if boundary:
-        from fish_viewer.refinement.config import read_model
-        read_model(boundary)
-        model_sources.append((Path(boundary).name, Path(boundary)))
-    proposals = default_proposal_model()
-    if proposals:
-        from fish_viewer.proposals.config import read_model as read_proposal_model
-        read_proposal_model(proposals)
-        model_sources.append(('proposals', Path(proposals)))
-    for label in ('refinement', 'refinement-base', 'refinement-bias-candidate'):
-        source = ROOT / 'models' / label
-        if (source / 'refinement-model.json').is_file() and label not in {name for name, _ in model_sources}:
-            from fish_viewer.refinement.config import read_model
-            read_model(source)
-            model_sources.append((label, source))
-    enhanced = ROOT / 'models/cells-preprocessed'
-    if (enhanced / 'fish-model.json').is_file():
-        check_models(enhanced, signals)
-        model_sources.append(('cells-preprocessed', enhanced))
-    sliced = ROOT / 'models/cells-stardist2d'
-    if (sliced / 'fish-model.json').is_file():
-        check_models(sliced, signals)
-        model_sources.append(('cells-stardist2d', sliced))
+    model_sources = [(name, ROOT / 'models' / name) for name in ('cells-sensitive', 'proposals', 'refinement-bias-candidate', 'signals-center-unet', 'cells-stardist2d')]
     for label, source in model_sources:
         target = destination / 'models' / label
         target.mkdir(parents=True)
         copied = {}
         for path in source.iterdir():
-            if path.is_file() and path.name != 'last.weights.h5':
+            if path.is_file():
                 shutil.copy2(path, target / path.name)
                 with (target / path.name).open('rb') as stream:
                     copied[path.name] = hashlib.file_digest(stream, 'sha256').hexdigest()

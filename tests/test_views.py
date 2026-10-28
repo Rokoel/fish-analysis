@@ -9,6 +9,53 @@ from fish_viewer.reader import entry_for_path, load_dataset
 from fish_viewer.views import clip_segment, slice_segments
 
 
+@pytest.mark.gui
+@pytest.mark.parametrize('unit_scale', [1., 1e-6])
+def test_extreme_zoom_keeps_location_and_stays_within_scrollbar_range(qapp, ims_file, unit_scale):
+    from PySide6 import QtCore, QtGui, QtTest
+    from fish_viewer.models import Scene
+    from fish_viewer.views import SliceView
+    data = load_dataset(entry_for_path(ims_file))
+    data.metadata.shape = (2, 512, 512)
+    data.metadata.spacing = tuple(unit_scale * value for value in (.04, .04, .32))
+    data.metadata.origin = tuple(unit_scale * value for value in (.5, .5, 0))
+    data.scene = Scene()
+    data.volumes = [np.zeros(data.metadata.shape, np.uint8) for _ in data.volumes]
+    data.volumes[0].fill(80)
+    view = SliceView()
+    view.resize(900, 700)
+    view.show()
+    try:
+        view.set_dataset(data)
+        qapp.processEvents()
+        position = QtCore.QPoint(430, 310)
+        QtTest.QTest.mouseMove(view.viewport(), position)
+        qapp.processEvents()
+        jumps = []
+        for index in range(130):
+            before = view.mapToScene(position)
+            event = QtGui.QWheelEvent(QtCore.QPointF(position),
+                QtCore.QPointF(view.viewport().mapToGlobal(position)), QtCore.QPoint(), QtCore.QPoint(0, 120),
+                QtCore.Qt.MouseButton.NoButton, QtCore.Qt.KeyboardModifier.ControlModifier,
+                QtCore.Qt.ScrollPhase.ScrollUpdate, False)
+            view.wheelEvent(event)
+            after = view.mapToScene(position)
+            if index > 15:
+                jumps.append(np.linalg.norm([after.x() - before.x(), after.y() - before.y()]))
+        assert max(jumps) < .01 * unit_scale
+        assert view.transform().m11() * data.spacing[0] <= 256 * (1 + 1e-9)
+        assert view.horizontalScrollBar().maximum() < 2**30
+        # Scrolling after the limit does not move the view or change slice.
+        before, transform = view.mapToScene(position), view.transform()
+        view.wheelEvent(event)
+        assert view.mapToScene(position) == before and view.transform() == transform
+        assert view.index == 1
+        color = view.viewport().grab().toImage().pixelColor(position)
+        assert color.green() >= 190 and color.red() < 20
+    finally:
+        view.close()
+
+
 def test_mesh_slice_is_geometric_intersection():
     sphere = pv.Sphere(radius=3, center=(10, 20, 30), theta_resolution=60, phi_resolution=60)
     segments = slice_segments(sphere, 2, 30)

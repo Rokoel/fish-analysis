@@ -37,10 +37,7 @@ def main():
     parser.add_argument('--audit-only',action='store_true',help='Audit the entire input folder and cache calibrated training data')
     parser.add_argument('--audit',type=Path,help='Train from a completed collection audit.json and its fixed acquisition split')
     presets=parser.add_mutually_exclusive_group()
-    presets.add_argument('--precision',action='store_true',help='Use conservative shape, probability and membrane-evidence acceptance')
-    presets.add_argument('--balanced',action='store_true',help='Allow more elongation while retaining membrane evidence; select acceptance on validation during training')
     presets.add_argument('--evidence-only',action='store_true',help='Ignore roundness and elongation, retain visible-boundary acceptance, and train on all complete annotations')
-    parser.add_argument('--curate-audit',type=Path,help='Derive a conservative audit with the four legacy outliers and all their duplicates excluded')
     args=parser.parse_args()
     if args.check_controls:
         if not args.model:parser.error('--check-controls requires --model')
@@ -79,23 +76,6 @@ def main():
         config=replace(config,**updates).validate()
         for path in args.paths:
             entries.extend(scan_library(path)[0] if Path(path).is_dir() else [entry_for_path(path)])
-    if args.curate_audit:
-        from .audit import derive_precision_audit
-        from .precision import precision_preset,balanced_preset,evidence_preset
-        if not args.settings:
-            config=NeuralConfig.from_dict(json.loads(args.curate_audit.read_text())['config'])
-        if args.evidence_only:config=evidence_preset(config).validate()
-        elif args.balanced:config=balanced_preset(config).validate()
-        elif args.precision or not args.settings:config=precision_preset(config).validate()
-        report=derive_precision_audit(args.curate_audit,Path(args.output)/'audit.json',config)
-        (Path(args.output)/'settings.json').write_text(json.dumps(dict(version=1,engine='stardist3d',config=asdict(config)),indent=2))
-        print(json.dumps(report['summary'],indent=2));return 0
-    if args.precision:
-        from .precision import precision_preset
-        config=precision_preset(config).validate()
-    if args.balanced:
-        from .precision import balanced_preset
-        config=balanced_preset(config).validate()
     if args.evidence_only:
         from .precision import evidence_preset
         if args.mode=='apply' and args.model and not args.settings and not args.request:

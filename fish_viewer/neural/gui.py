@@ -11,14 +11,14 @@ from ..worker_runtime import process_environment
 
 from PySide6 import QtCore, QtWidgets
 
-from ..pipeline.gui import PipelinePanel
+from ..training_gui import TrainingPanel
 from ..pipeline.runner import _json
 from ..models import LibraryEntry
 from .config import NeuralConfig
-from .precision import balanced_preset,evidence_preset
+from .precision import evidence_preset
 
 
-class NeuralPanel(PipelinePanel):
+class NeuralPanel(TrainingPanel):
     def __init__(self, host):
         self.neural_controls = {}
         self.neural_flags = {}
@@ -61,10 +61,6 @@ class NeuralPanel(PipelinePanel):
     def _setup_page(self):
         super()._setup_page()
         form = self.controls['voxel_um'].parentWidget().layout()
-        for key in ('threshold','smooth_um','seed_distance_um','closing_um'):
-            form.setRowVisible(self.controls[key],False)
-        form.setRowVisible(self.method,False)
-        form.setRowVisible(self.holdout,False)
         self.exclude_border.setChecked(False)
         self.model_path = QtWidgets.QLineEdit()
         self.model_path.editingFinished.connect(self.restore_chosen_model)
@@ -79,11 +75,6 @@ class NeuralPanel(PipelinePanel):
         clear_audit=QtWidgets.QPushButton('Clear');clear_audit.clicked.connect(lambda:self.set_audit(None))
         audit_row=QtWidgets.QHBoxLayout();audit_row.addWidget(self.audit_path);audit_row.addWidget(choose_audit);audit_row.addWidget(clear_audit)
         form.insertRow(2,'Audited collection for training',audit_row)
-        strict=QtWidgets.QPushButton('Use conservative cell selection')
-        strict.clicked.connect(self.use_precision_preset)
-        form.addRow(strict)
-        balanced=QtWidgets.QPushButton('Use balanced cell selection')
-        balanced.clicked.connect(self.use_balanced_preset);form.addRow(balanced)
         evidence=QtWidgets.QPushButton('Use visible boundaries · ignore roundness')
         evidence.clicked.connect(self.use_evidence_preset);form.addRow(evidence)
         for key,label in [('native_sampling','Use source XY resolution when coarser'),
@@ -133,12 +124,7 @@ class NeuralPanel(PipelinePanel):
         if not enabled and 'select_balanced_acceptance' in self.neural_flags:
             self.neural_flags['select_balanced_acceptance'].setChecked(False)
 
-    def use_precision_preset(self):
-        from .precision import precision_preset
-        self.set_config(precision_preset(self.config()))
 
-    def use_balanced_preset(self):
-        self.set_config(balanced_preset(self.config()))
 
     def use_evidence_preset(self):
         self.set_config(evidence_preset(self.config()))

@@ -17,6 +17,7 @@ training_annotations/
 
 .venv-freeze/
 
-# Local reconstruction metadata; its guide is versioned.
-training_metadata/*
-!training_metadata/README.md
+# Local training data and metadata.
+training_metadata/
+# Consolidated historical reports stay local.
+reports/combined/

@@ -50,8 +50,9 @@ def test_channel_review_and_processing_summary(qapp, tmp_path, ims_file):
         window.cell_channel_choice.setCurrentIndex(window.cell_channel_choice.findData(0))
         assert 'Check channels' not in item.text()
         assert 'Cell: 1; signals: 2' in window.processing_summary.text()
-        window.pipeline.setCurrentIndex(window.pipeline.findData('balanced'))
-        assert 'Balanced' in window.processing_summary.text()
+        window.pipeline.setCurrentIndex(window.pipeline.findData('consensus'))
+        assert window.pipeline.count() == 2
+        assert window.pipeline.currentData() == 'consensus'
         window.channel_roles[str(ims_file)] = dict(cell=0, signals=[])
         assert window.channel_summary(item.data(QtCore.Qt.ItemDataRole.UserRole))[1]
     finally:
@@ -63,11 +64,11 @@ def test_overview_tracks_edits_and_panel_is_visible(qapp, tmp_path, ims_file):
     try:
         window.show()
         qapp.processEvents()
-        assert window.annotation_dock.isVisible()
+        assert not window.annotation_dock.isVisible()
         assert window.tabs.tabText(3) == 'Results'
-        assert 'Manual: 0 cells · 0 signals' in window.results_overview.text()
+        assert 'Pre-existing: 0 cells · 0 signals' in window.results_overview.text()
         window.editor.document.add_signal([12, 22, 31], 1)
-        assert 'Program: 0 cells · 1 signals · 0 measured distances' in window.results_overview.text()
+        assert 'This run: 0 cells · 1 signals · 0 measured distances' in window.results_overview.text()
         assert window.overview_excel.isEnabled()
         assert not window.overview_folder.isEnabled()
         window.update_results_overview(dict(points=[dict(distance_um=1), dict(distance_um=3)], cell_volumes=[{}]))

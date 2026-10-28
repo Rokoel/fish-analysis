@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT))
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--scan', type=Path, default=ROOT / 'FISH/3abx3ad_101212/141212_3ab3ad_Lam633m_dsRed543_CG488b.imx')
-    parser.add_argument('--output', type=Path, default=ROOT / 'docs/images/analysis.png')
+    parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--analysis-result', type=Path, help='Open a completed real analysis instead of the original scan.')
     parser.add_argument('--gallery', action='store_true', help='Also capture contour review and measured distances.')
     args = parser.parse_args()

@@ -102,7 +102,7 @@ def validate_measurements(report, surfaces, metadata):
             raise ValueError('A saved B point is not a closest point on its assigned cell surface.')
 
 
-def measure_result(path, output, emit=lambda event: None, cancel=None):
+def measure_result(path, output, emit=lambda event: None, cancel=None, maximum_pair_distance=1.):
     emit(dict(kind='progress', phase='Checking cells and signals before measurement', current=0, total=0))
     report, labels, cell_metadata, metadata = validated_result(path, cancel)
     if not report.get('signal_filter') or report['signal_filter'] != cell_metadata.get('signal_filter'):
@@ -124,6 +124,8 @@ def measure_result(path, output, emit=lambda event: None, cancel=None):
                           contours_sha256=archive_digest(directory / 'contours.npz'),
                           measured_signals=len(points), image_edge_contacts=sum(p['border_at_image_edge'] for p in points)),
                       progress=dict(phase='Measurements complete', current=len(points), total=len(points)))
+        from .signal_pairs import add_signal_pairs
+        add_signal_pairs(report, maximum_pair_distance)
         write_tables(directory, report)
         _json(directory / 'report.json', report)
         checkpoint(cancel)

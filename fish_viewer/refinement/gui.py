@@ -27,8 +27,7 @@ class TrainingDialog(QtWidgets.QDialog):
             description.setText('Train a tiny 3D center and box detector. Center loss uses complete marked cells only; '
                 'unmarked cells and regions are ignored. Choose a calibrated cell collection cache.')
         form=QtWidgets.QFormLayout();layout.addLayout(form)
-        default=Path(__file__).resolve().parents[2]/('artifacts/refinement-fish/audit/audit.json' if kind=='proposals' else 'artifacts/evidence-fish/audit/audit.json')
-        self.audit=QtWidgets.QLineEdit(str(default) if default.exists() else '')
+        self.audit=QtWidgets.QLineEdit()
         row=QtWidgets.QHBoxLayout();row.addWidget(self.audit)
         browse=QtWidgets.QPushButton('Browse…');browse.clicked.connect(self.choose_audit);row.addWidget(browse)
         form.addRow('Collection audit',row)

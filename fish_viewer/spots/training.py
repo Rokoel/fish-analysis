@@ -16,6 +16,7 @@ from ..signals.config import SignalConfig
 from ..signals.evaluation import select_threshold
 from ..signals.data import at_labels
 from ..neural.audit import read_references
+from ..pipeline.segmentation import checkpoint
 from .config import CenterConfig
 from .data import gaussian_targets
 from .detection import local_centers
@@ -71,7 +72,7 @@ class Crops(Dataset):
         x[(slice(None), *dest)] = inputs[(slice(None), *src)]
         v[dest] = valid[src]
         p = points - low
-        # Include near-crop points for consistent Gaussian and flow targets.
+        # Include near-crop points for consistent Gaussian targets.
         p = p[np.all((p >= -4) & (p <= size + 3), axis=1)]
         if self.training:
             for axis in range(3):
@@ -87,17 +88,11 @@ class Crops(Dataset):
         target = gaussian_targets(p, (size,) * 3, self.config.sigma_um / self.config.spacing_um)
         result = dict(inputs=torch.from_numpy(x.copy()), valid=torch.from_numpy(v.copy()[None]),
                       heatmap=torch.from_numpy(target[None]))
-        if self.engine == 'signal-spotiflow3d':
-            from spotiflow.utils import points_to_flow3d
-            flow = points_to_flow3d(p.astype(np.float32), (size,) * 3, sigma=self.config.sigma_um / self.config.spacing_um, grid=1)
-            result['flow'] = torch.from_numpy(np.moveaxis(flow, -1, 0).copy())
         return result
 
 
 def autocast_dtype(model):
-    # Spotiflow normalizes a four-vector flow. Float16 can underflow the
-    # normalization epsilon; bfloat16 preserves its exponent range.
-    return torch.bfloat16 if hasattr(model, '_flow') else torch.float16
+    return torch.float16
 
 
 def autocast_enabled(model, device):
@@ -113,10 +108,9 @@ def predict_volume(model, inputs, device):
         out = model(torch.as_tensor(x, device=device))
     box = tuple(slice(0, s) for s in shape)
     heat = torch.sigmoid(out['heatmaps'][0][0, 0].float()).cpu().numpy()[box]
-    flow = out.get('flow')
-    if not np.isfinite(heat).all() or (flow is not None and not torch.isfinite(flow).all()):
+    if not np.isfinite(heat).all():
         raise ValueError('Non-finite signal-center inference output.')
-    return heat, (flow[0].float().cpu().numpy()[(slice(None), *box)] if flow is not None else None)
+    return heat, None
 
 
 def scoring_regions(index, split):
@@ -155,7 +149,7 @@ def predict_records(model, index, split, config, device, emit=lambda e: None, re
         with np.load(record['path'], allow_pickle=False) as f:
             inputs = f['inputs'].astype(np.float32)
         heat, flow = predict_volume(model, inputs, device)
-        rows = local_centers(heat, inputs[2] > .5, record['origin_xyz'], config, record['cell_id'], record['channel'], flow=flow)
+        rows = local_centers(heat, inputs[2] > .5, record['origin_xyz'], config, record['cell_id'], record['channel'])
         image = index['cases'][record['case']]['image']
         roi, labels, metadata = regions[image]
         known = at_labels(roi, [p['xyz'] for p in rows], metadata['origin_xyz'], metadata['spacing_zyx'])
@@ -164,7 +158,8 @@ def predict_records(model, index, split, config, device, emit=lambda e: None, re
     return cases, [np.asarray([p['score'] for p in c['candidates']]) for c in cases]
 
 
-def train(index_path, output, engine, config=None, device_name='cuda', emit=print, initial_model=None):
+def train(index_path, output, engine, config=None, device_name='auto', emit=print, initial_model=None, cancel=None):
+    checkpoint(cancel)
     config = (config or CenterConfig()).validate()
     output = Path(output).resolve(); output.mkdir(parents=True, exist_ok=False)
     index = json.loads(Path(index_path).read_text())
@@ -174,7 +169,7 @@ def train(index_path, output, engine, config=None, device_name='cuda', emit=prin
         raise ValueError('Training sampling differs from the frozen crop corpus.')
     torch.set_num_threads(4)
     torch.manual_seed(config.seed); random.seed(config.seed); np.random.seed(config.seed)
-    device = torch.device(device_name)
+    device = torch.device('cuda' if device_name=='auto' and torch.cuda.is_available() else 'cpu' if device_name=='auto' else device_name)
     if device.type == 'cuda' and not torch.cuda.is_available():
         raise ValueError('CUDA requested but unavailable.')
     previous = None
@@ -185,7 +180,7 @@ def train(index_path, output, engine, config=None, device_name='cuda', emit=prin
             raise ValueError('Recovery requires the original corpus and frozen cell models.')
         if previous['engine'] != engine or any(previous['config'][k] != asdict(config)[k] for k in ('spacing_um', 'sigma_um', 'filters', 'patch_size')):
             raise ValueError('Recovered checkpoint architecture/sampling must match.')
-    model = create(engine, config, previous.get('spotiflow_config') if previous else None).to(device)
+    model = create(engine, config).to(device)
     if previous:
         weights = torch.load(Path(initial_model) / previous['checkpoint'], map_location=device, weights_only=True)
         model.load_state_dict(weights['state_dict'])
@@ -212,7 +207,7 @@ def train(index_path, output, engine, config=None, device_name='cuda', emit=prin
         report['epochs'] = [r for r in parent_report['epochs'] if r['epoch'] <= start_epoch]
         report['resume'] = dict(initial_model=str(Path(initial_model).resolve()), initial_epoch=start_epoch,
             parent_report=str((Path(initial_model).parent / 'report.json').resolve()),
-            optimizer_restarted=True, reason='Recover finite best checkpoint after float16 flow instability.',
+            optimizer_restarted=True, reason='Resume selected checkpoint with a fresh optimizer.',
             parent_config=previous['config'], parent_runtime=parent_report['runtime'])
         cases, probabilities = predict_records(model, index, 'validation', config, device, emit, validation_regions)
         selection = select_threshold(cases, probabilities, scoring)
@@ -223,17 +218,17 @@ def train(index_path, output, engine, config=None, device_name='cuda', emit=prin
         previous.update(config=asdict(config), threshold=selection['selected']['threshold'], validation=metrics,
                         selection=selection, training_resume=report['resume'])
         write(model_dir / 'signal-model.json', previous)
-        if engine == 'signal-spotiflow3d': model.config.save(model_dir / 'config.yaml')
         write(output / 'best-validation.json', dict(cases=cases, threshold=previous['threshold'], metrics=metrics))
     write(output / 'report.json', report)
     for epoch in range(start_epoch + 1, config.epochs + 1):
+        checkpoint(cancel)
         model.train(); totals = np.zeros(3)
         for batch_index, batch in enumerate(loader):
+            checkpoint(cancel)
             x, target, valid = (batch[n].to(device, non_blocking=True) for n in ('inputs', 'heatmap', 'valid'))
-            flow = batch.get('flow'); flow = flow.to(device, non_blocking=True) if flow is not None else None
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=device.type, dtype=autocast_dtype(model), enabled=autocast_enabled(model, device)):
-                value, heat, auxiliary = loss(model(x), target, valid, config, flow)
+                value, heat, auxiliary = loss(model(x), target, valid, config)
             if not torch.isfinite(value):
                 raise ValueError('Non-finite direct center loss.')
             scaler.scale(value).backward(); scaler.unscale_(optimizer)
@@ -252,18 +247,14 @@ def train(index_path, output, engine, config=None, device_name='cuda', emit=prin
         if improved:
             best = key; last_best = epoch
             torch.save(dict(state_dict=model.state_dict()), model_dir / 'best.pt')
-            if engine == 'signal-spotiflow3d':
-                model.config.save(model_dir / 'config.yaml')
             manifest = dict(version=1, engine=engine, config=asdict(config), checkpoint='best.pt', threshold=selection['selected']['threshold'],
                 best_epoch=epoch, validation=metrics, selection=selection, data_index=str(Path(index_path).resolve()),
                 inputs=['signal', 'membrane', 'target_cell_mask'], training_resume=report.get('resume'), score_note='Learned heatmap peak score; validation-calibrated, not a probability of correctness.',
                 cell_checkpoint_sha256=index['cell_checkpoint_sha256'], boundary_checkpoint_sha256=index['boundary_checkpoint_sha256'])
-            if engine == 'signal-spotiflow3d':
-                manifest['spotiflow_config'] = vars(model.config)
             write(model_dir / 'signal-model.json', manifest)
             write(output / 'best-validation.json', dict(cases=cases, threshold=manifest['threshold'], metrics=metrics))
         row = dict(epoch=epoch, loss=float(totals[0] / len(loader)), heatmap_loss=float(totals[1] / len(loader)),
-            flow_loss=float(totals[2] / len(loader)), precision=metrics['precision'], recall=metrics['recall'], f05=metrics['f05'],
+            precision=metrics['precision'], recall=metrics['recall'], f05=metrics['f05'],
             threshold=selection['selected']['threshold'], saved=improved, elapsed_s=time.monotonic() - started)
         report['epochs'].append(row); report['best_epoch'] = last_best; report['elapsed_s'] = row['elapsed_s']
         write(output / 'report.json', report); emit(dict(kind='epoch', **row))
@@ -285,7 +276,6 @@ def graphs(output, rows):
     figure = Figure(figsize=(11, 4), layout='constrained'); FigureCanvasAgg(figure)
     a, b = figure.subplots(1, 2); epochs = [r['epoch'] for r in rows]
     a.plot(epochs, [r['loss'] for r in rows], label='total loss'); a.plot(epochs, [r['heatmap_loss'] for r in rows], label='center loss')
-    if any(r['flow_loss'] for r in rows): a.plot(epochs, [r['flow_loss'] for r in rows], label='flow loss')
     b.plot(epochs, [r['precision'] or 0 for r in rows], label='validation precision'); b.plot(epochs, [r['recall'] or 0 for r in rows], label='validation recall')
     for ax in (a, b): ax.set_xlabel('Epoch'); ax.grid(alpha=.2); ax.legend()
     b.set_ylim(0, 1.02); a.set_title('Masked training loss'); b.set_title('Validation-calibrated detections')

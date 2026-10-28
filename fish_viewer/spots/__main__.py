@@ -9,13 +9,11 @@ from ..worker_runtime import Cancellation
 
 def main():
     parser = argparse.ArgumentParser(description='Direct 3D signal-center model worker.')
-    parser.add_argument('--mode', choices=['apply', 'controls', 'scout'], required=True)
+    parser.add_argument('--mode', choices=['apply', 'controls'], required=True)
     parser.add_argument('--model', type=Path, required=True)
     parser.add_argument('--image', type=Path)
     parser.add_argument('--scene', type=Path)
     parser.add_argument('--cell-predictions', type=Path)
-    parser.add_argument('--cell-model', type=Path)
-    parser.add_argument('--cell-channel',type=int)
     parser.add_argument('--signal-channels',nargs='+',type=int)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--device', choices=['auto', 'cpu', 'gpu'], default='auto')
@@ -29,11 +27,6 @@ def main():
         from .benchmark import controls
         report = controls(args.model, args.output, args.device)
         emit(dict(kind='finished', report=report))
-    elif args.mode == 'scout':
-        if not args.image or not args.cell_model:
-            parser.error('Scouting requires --image and --cell-model.')
-        from .scouting import scout
-        report = scout(args.image, args.model, args.output, args.cell_model, args.device, emit, cancel,args.cell_channel,args.signal_channels)
     else:
         if not args.image or not args.cell_predictions:
             parser.error('Application requires --image and --cell-predictions.')

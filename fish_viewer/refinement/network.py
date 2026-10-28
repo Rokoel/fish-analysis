@@ -3,32 +3,6 @@
 
 def network(tf, config):
     layers = tf.keras.layers
-    if config.residual_correction:
-        from dataclasses import replace
-        original = network(tf,replace(config,residual_correction=False))
-        frozen = tf.keras.Model(original.input,original.output,name='frozen_contour')
-        frozen.trainable=False
-        inputs=layers.Input((config.patch_size,)*3+(2,),name='membrane_and_seed')
-        baseline=frozen(inputs,training=False)
-        probability=layers.Activation('sigmoid')(baseline)
-        value=layers.Concatenate()([inputs,probability]);skips=[]
-        def correction_block(x,filters):
-            for _ in range(2):
-                x=layers.Conv3D(filters,3,padding='same',activation='relu')(x)
-            return x
-        for level in range(2):
-            value=correction_block(value,4*2**level);skips.append(value)
-            value=layers.MaxPool3D(2)(value)
-        value=correction_block(value,16)
-        for level in reversed(range(2)):
-            value=layers.UpSampling3D(2)(value)
-            value=layers.Concatenate()([value,skips[level]])
-            value=correction_block(value,4*2**level)
-        correction=layers.Conv3D(1,1,kernel_initializer='zeros',bias_initializer='zeros',
-                                 activation='tanh',dtype='float32',name='bounded_contour_correction')(value)
-        correction=layers.Rescaling(2.)(correction)
-        logits=layers.Add(name='corrected_contour_logit',dtype='float32')([baseline,correction])
-        return tf.keras.Model(inputs,logits,name='residual_boundary_unet3d')
     inputs = layers.Input((config.patch_size,)*3+(2,), name='membrane_and_seed')
     def block(value, filters):
         for _ in range(2):

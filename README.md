@@ -1,169 +1,90 @@
 # FISH Analysis
 
-**[Download a release](https://github.com/Rokoel/fish-analysis/releases/latest)** ·
+Desktop analysis of Imaris microscopy scans: detect cells and fluorescent signals,
+review and edit their annotations, and measure physical 3D cell volumes,
+signal-to-border distances and distances between nearby signals of different colors.
+Original scans and annotations are opened read-only.
+
+**[Download v0.9.0](https://github.com/Rokoel/fish-analysis/releases/tag/v0.9.0)** ·
 **[Analysis guide](docs/fish-analysis.md)** · **[Documentation](docs/README.md)** ·
-**[Models and evidence](docs/models.md)**
-
-![FISH Analysis reviewing consensus cell contours on an original microscopy scan](docs/images/analysis.png)
-*A completed both-detector consensus analysis, opened in the running app*
-
-FISH Analysis helps researchers analyze Imaris scans by automating cell contouring,
-signal detection, and shortest 3D distances from signals to cell surfaces.
-It supports human judgment, with results available for review and correction.
-
-### Why a separate tool?
-
-Imaris can perform many of the same individual operations, including cell/surface
-segmentation, spot detection and distance measurements. FISH Analysis is intended
-for a different workflow: its bundled models are trained specifically for the
-microscopy acquisitions used by the project and can then be applied without
-interactive foreground/background painting or per-scan segmentation training.
-
-For routine analysis, the operator checks the channel roles and starts the
-pipeline. The same fixed models and thresholds can be applied across scans from
-different acquisition groups; manual correction is available when needed, but it
-is not part of the automatic inference procedure.
-
-The project also keeps the analysis inspectable and reproducible: model
-checkpoints, thresholds, processing code and evaluation reports are versioned
-together. Results can still be exported as Imaris-compatible scenes, so the tool
-can be used as a specialized automatic analysis stage rather than as a replacement
-for Imaris visualization and downstream inspection.
-
-The goal is therefore not to reproduce every Imaris feature or claim universal
-superiority over interactive segmentation. It is to provide a free, repeatable
-pipeline for this specific FISH workflow with no interactive segmentation tuning
-required for each analyzed scan.
-
-- **Analysis** is the main app, it processes scans, supports result editing, and exports Imaris, Excel and CSV files.
-- **Viewer** displays scans and annotations in 2D/3D and provides model inference and training tools.
-- **Training Annotator** collects painted cell-border examples for training.
-
+**[Models and evaluation](docs/models.md)**
 
 ## Get started
 
-### Standalone application
+Download the Windows x64 **EXE** or Linux x64 **AppImage** from the release.
+Windows uses CPU inference. Linux supports CPU or NVIDIA GPU inference and installs
+its verified neural runtime on first launch. See [installation and runtime details](docs/releasing.md).
 
-Download the Windows EXE or Linux AppImage from the release page. Windows includes
-a CPU runtime. Linux downloads and verifies its neural runtime on first launch;
-allow about 11 GB free during setup and about 8 GB for the retained runtime.
-Later launches reuse the installed runtime. See [installation and releases](docs/releasing.md).
-For offline setup, download both matching `.runtime.part*` files beside the
-AppImage and keep their original filenames; the app detects them automatically.
+1. Add an IMS scan, an IMX scene with its image, or a folder of scans.
+2. Check the cell channel and select the signal channels.
+3. Choose an output folder and run **Both-detector consensus**, the default pipeline.
+4. Review cells, signals and measurements. Export creates exactly two files:
+   a standalone annotated **IMS** image and an **Excel workbook**.
 
-### Run from source
+The other supported pipeline is **Fine-tuned StarDist 2D**. Both pipelines use the
+same signal-center U-Net. Minimum roundness defaults to **82%**, with a selectable
+range of **75–100%**. A higher value rejects irregular cells; it leaves surviving
+contours unchanged.
 
-Use Python 3.12. Setup installs the GUI/TensorFlow environment and the separate
-PyTorch environment used by the default signal detector.
+## Consensus results at 82% roundness
 
-| | Linux | Windows |
-|---|---|---|
-| First-time setup | `./setup-analysis.sh` | `setup-analysis.bat` |
-| Analyze scans | `./run-analysis.sh` | `run-analysis.bat` |
-| Explore scans and train models | `./run-viewer.sh FISH` | `run-viewer.bat FISH` |
-| Paint training annotations | `./run-annotator.sh` | `run-annotator.bat` |
+The [roundness evaluation](reports/consensus-roundness-20261028/README.md) processed
+**71 historical test scans** with frozen checkpoints and reviewed cell channels:
 
-The existing local environments can be reused. Linux GPU setup for PyTorch is
-separate from the default CPU installation; see [signal runtime setup](docs/signal-centers.md).
-The desktop needs a working OpenGL driver. See [viewer setup and controls](docs/viewer.md)
-for a minimal installation without neural dependencies.
+| Result | At 82% roundness |
+| --- | ---: |
+| Cells passing roundness, before signal filtering | 3,101 |
+| Retained cells containing signals | 1,031 |
+| Detected signals in retained cells | 1,063 |
+| Complete manual cells matched after signal filtering | 182 / 508 |
+| Mean absolute volume error, relative to manual volume | 5.56% across 182 matched cells |
+| Mean absolute signal-to-border distance error | 0.115 µm across 166 matched signals |
+| Median cell overlap with manual contours (IoU) | 0.880 |
 
-## Analyze a scan
+Volume and distance errors exclude cut manual cells and are conditional on matches;
+unmatched detections have incomplete manual labels and do not establish overall
+precision. The test fold was previously used in exploratory comparisons, so this
+is not independent validation of the chosen threshold. See the full report for
+all five roundness values, error tails and acquisition-bootstrap intervals, or the
+[separate StarDist 2D report](reports/stardist2d/README.md).
 
-1. Add scans or a folder and select the scans to process.
-2. Check the cell and signal channel roles; fluorescence channel order varies by scan.
-3. Choose an output folder and review **Pipeline and settings**.
-4. Click **Analyze selected**, then inspect **Image**, **Distances**, **Cell counts** and **Results**.
-5. Keep exported `.imx` and `.ims` files together; open the `.imx` in Imaris.
+## Review, edit and measure
 
-The default uses **both-detector consensus** and the **signal-center 3D U-Net**.
-Minimum roundness is 0.72; setting it to zero disables shape rejection.
-Other fixed presets and manual editing are described in the [Analysis guide](docs/fish-analysis.md).
+- Imported annotations and annotations created in the current run have independent
+  visibility controls. UUIDs and run provenance support repeated import/export and
+  reanalysis without relying on object names.
+- Select a cell or signal to reveal its nearest visible 2D section. Display
+  interpolation starts enabled, contrast adapts to sparse fluorescence, and zoom
+  stays anchored at high magnification.
+- Precise and proportional editing, layered contours, selection movement,
+  simplification with per-cell skip reporting, and undo support contour review.
+  Edits recalculate volumes and affected distances. Deleting a cell also removes
+  its associated signals.
+- Different-channel signals are paired closest-first within each cell and time
+  point. A configurable physical cutoff, initially **1 µm**, excludes distant pairs.
+  Pair distances are exported in the IMS and the workbook's **Signal pairs** sheet.
 
-```mermaid
-flowchart LR
-    A[Scan + cell channel] --> B[Both-detector consensus · default]
-    A --> C[Fine-tuned StarDist 2D]
-    B --> D[3D StarDist + center/box detector<br/>Surface-loss contours + agreement gate]
-    C --> E[XY polygons linked into 3D cells]
-    D --> F[Roundness filter]
-    E --> F
-    F --> G[Signal-center 3D U-Net]
-    G --> H[Retain cells with signals]
-    H --> I[Shortest 3D distances to borders]
-    I --> J[Review + Imaris / Excel / CSV]
-```
+The editing sidebar starts hidden. Export preserves pre-existing names and dates;
+new annotations receive creation timestamps. Excel includes cell volumes and
+signal-to-border distances in **Measurements**, plus signal pairs when present.
+See [editing and measurements](docs/fish-analysis.md) and
+[Imaris compatibility](docs/imaris-export.md).
 
-Each stage runs in a separate worker process. Results are saved separately from
-source data; cancellation preserves completed runs.
+## Source installation and development
 
-### Review contours and measurements
+Use Python 3.12. On Linux, run `./setup-analysis.sh` then `./run-analysis.sh`;
+on Windows, run `setup-analysis.bat` then `run-analysis.bat`.
+Setup installs the separate PyTorch signal runtime. The repository includes the
+five component model bundles required by the two analysis pipelines.
 
-| Inspect a signal and its nearest border | Review manual and program measurements |
-|---|---|
-| ![Signal A, nearest border B and editable cell contours in the running app](docs/images/editing.png) | ![Manual and automatic signal-to-border measurements in the Distances tab](docs/images/distances.png) |
+`./run-viewer.sh` opens the general Viewer and developer training tools.
+`./run-annotator.sh --audit /absolute/path/audit.json --output /absolute/path/annotations`
+opens the training annotator. Future training and evaluation require explicit data
+paths; historical training metadata and painted annotations are no longer bundled.
+The combined historical report stays local and is excluded from Git and releases;
+the latest consensus roundness and StarDist reports remain public.
 
-Select a measurement to locate its A–B segment in the image. Open
-**Annotations and editing** to inspect contours or adjust points; edited geometry,
-volumes, distances and exports stay synchronized. Manual annotations and automatic
-results can be shown separately. See the [review and export guide](docs/fish-analysis.md).
-
-## Models and measured limits
-
-All current checkpoints are in [`models/`](models/); their evaluation reports,
-plots and tables are in [`reports/`](reports/). Start with the [model inventory](docs/models.md)
-and [evaluation guide](docs/evaluation.md).
-
-![Both-detector consensus and fine-tuned StarDist 2D: matched volume and signal-to-border distance errors](docs/images/pipeline-comparison.png)
-
-*Measurement evidence for the two cell presets on 71 historical test scans,
-with the signal-center U-Net and roundness gate of 0.72. Whiskers show 95%
-acquisition-bootstrap intervals. Matched cells/signals and channel protocols differ
-between reports, so these averages are not a paired ranking or whole-field detection
-accuracy. Sources: [correct-channel consensus](reports/consensus-correct-channels/README.md)
-and [fine-tuned StarDist 2D](reports/stardist2d/distances/README.md).*
-
-Incomplete manual annotations leave many detected cells unscored. Review real
-contours and channel choices before interpreting detection totals as accuracy.
-Experimental pipelines retain their own documented evaluation scopes.
-
-## Training data and repository layout
-
-Original scans, annotation crops, checkpoints and bundled reports are preserved.
-Historical runs, generated training arrays and build outputs have been removed.
-Training caches must be rebuilt before retraining; small reconstruction metadata
-is retained locally in `training_metadata/`.
-
-| Folder | Purpose |
-|---|---|
-| `fish_viewer/` | Analysis, viewer, annotator and worker code |
-| `models/` | Bundled inference checkpoints and manifests |
-| `reports/` | Release evaluation evidence and plots |
-| `docs/` | Usage, model, training and release guides |
-| `scripts/`, `tests/`, `packaging/` | Research/build tools, checks and release definitions |
-| `FISH/`, `training_annotations/` | Local original scans and annotation data; excluded from Git |
-| `training_metadata/` | Local archived splits, recipes, indexes and training provenance |
-| `.venv/`, `.venv-spots/`, `.venv-freeze/` | Main, signal and packaging environments; excluded from Git |
-
-See [training data and rebuilding caches](docs/training-data.md). Source installations
-use the two working environments for inference as well as training.
-
-## Development
-
-```bash
-.venv/bin/python -m pip install -e '.[test]'
-.venv/bin/python -m pytest -q
-.venv/bin/python scripts/verify_release.py --require-latest-models --with-direct-signals
-```
-
-The optional signal suite uses `.venv-spots/`; tests requiring unavailable local
-data or optional runtimes skip. [Architecture](docs/architecture.md) explains the
-worker boundaries. [Releasing](docs/releasing.md) covers packaging and verification.
-
-## Attribution
-
-The fine-tuned StarDist 2D model derives from the official `2D_versatile_fluo`
-checkpoint. Its BSD-3-Clause licence is in
-[`PRETRAINED-LICENSE.txt`](models/cells-stardist2d/PRETRAINED-LICENSE.txt).
-Please cite Schmidt, Weigert, Broaddus and Myers, *Cell Detection with Star-convex
-Polygons*, MICCAI 2018, [DOI](https://doi.org/10.1007/978-3-030-00934-2_30).
+Run core tests with `python -m pytest -p no:cacheprovider -m "not neural and not gui and not integration"`.
+GUI tests require Qt/VTK or `QT_QPA_PLATFORM=offscreen`; neural tests require the
+TensorFlow/StarDist and configured PyTorch runtimes. See [architecture](docs/architecture.md),
+[training](docs/neural-training.md) and [release checks](docs/releasing.md).

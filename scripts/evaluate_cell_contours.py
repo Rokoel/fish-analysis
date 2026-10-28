@@ -9,8 +9,8 @@ import sys
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 import numpy as np
 from openpyxl import Workbook
-from benchmark_measurements import manual_meshes,ref_key,paired_stats
-from compare_refined_boundaries import surface_samples,boundary_error
+from fish_viewer.evaluation import manual_meshes,ref_key,legacy_paired_stats as paired_stats
+from fish_viewer.evaluation import surface_samples,boundary_error
 from fish_viewer.neural.audit import read_references
 from fish_viewer.pipeline.runner import read_prediction,_json
 from fish_viewer.pipeline.segmentation import Prepared

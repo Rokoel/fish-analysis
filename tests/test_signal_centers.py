@@ -72,24 +72,8 @@ def test_unknown_voxels_have_zero_heatmap_loss_gradient():
     assert prediction.grad[:, :, 4, 4, 4] < 0 and prediction.grad[:, :, 3, 3, 3] > 0
 
 
-def test_upstream_spotiflow_flow_decodes_subvoxel_centers():
-    pytest.importorskip('spotiflow')
-    from spotiflow.utils import points_to_flow3d
-    config = CenterConfig()
-    point = np.array([[12.2, 14.3, 11.7]], np.float32)
-    heat = gaussian_targets(point, (32,) * 3, config.sigma_um / config.spacing_um)
-    flow = np.moveaxis(points_to_flow3d(point, heat.shape, sigma=config.sigma_um / config.spacing_um), -1, 0)
-    found = local_centers(heat, np.ones(heat.shape, bool), np.zeros(3), config, 1, 1, flow=flow)
-    assert len(found) == 1 and np.allclose(found[0]['xyz'], (point[0] * config.spacing_um)[::-1], atol=1e-5)
 
 
-def test_spotiflow_configuration_roundtrips_through_json():
-    pytest.importorskip('spotiflow')
-    import json
-    from fish_viewer.spots.network import create
-    model = create('signal-spotiflow3d', CenterConfig())
-    restored = create('signal-spotiflow3d', CenterConfig(), json.loads(json.dumps(vars(model.config))))
-    assert tuple(model.state_dict()) == tuple(restored.state_dict())
 
 
 def test_runtime_preserves_virtual_environment_interpreter_symlink(tmp_path, monkeypatch):
@@ -104,7 +88,7 @@ def test_runtime_preserves_virtual_environment_interpreter_symlink(tmp_path, mon
     assert interpreter() == str(virtual)
 
 
-@pytest.mark.parametrize('engine', ['signal-center-unet3d', 'signal-spotiflow3d'])
+@pytest.mark.parametrize('engine', ['signal-center-unet3d'])
 def test_direct_model_report_and_manifest_load_without_torch(tmp_path, engine):
     import json
     from dataclasses import asdict
@@ -135,16 +119,6 @@ def test_direct_training_graphs_keep_current_epoch_visible(qapp, tmp_path):
     panel.shutdown(); host.close()
 
 
-def test_unknown_voxels_have_zero_flow_loss_gradient():
-    torch = pytest.importorskip('torch')
-    from fish_viewer.spots.network import loss
-    logits = torch.zeros((1, 1, 8, 8, 8), requires_grad=True)
-    flow = torch.zeros((1, 4, 8, 8, 8), requires_grad=True)
-    valid = torch.zeros_like(logits); valid[:, :, 2:6, 2:6, 2:6] = 1
-    value, _, _ = loss(dict(heatmaps=(logits,), flow=flow), torch.zeros_like(logits), valid,
-                        CenterConfig(), torch.ones_like(flow))
-    value.backward()
-    assert not flow.grad[:, :, :2].any() and flow.grad[:, :, 3, 3, 3].abs().sum() > 0
 
 
 def test_nonfinite_dense_output_is_rejected_instead_of_silent_empty_result():
@@ -155,46 +129,3 @@ def test_nonfinite_dense_output_is_rejected_instead_of_silent_empty_result():
             return dict(heatmaps=(torch.full((1, 1, *x.shape[-3:]), float('nan')),))
     with pytest.raises(ValueError, match='Non-finite signal-center inference'):
         predict_volume(Broken(), np.zeros((3, 16, 16, 16), np.float32), torch.device('cpu'))
-
-
-def test_zero_upstream_flow_is_finite_with_recovery_precision():
-    pytest.importorskip('spotiflow')
-    import torch
-    from dataclasses import replace
-    from fish_viewer.spots.network import create
-    from fish_viewer.spots.training import autocast_dtype
-    model = create('signal-spotiflow3d', replace(CenterConfig(), filters=4))
-    torch.set_num_threads(4)
-    for parameter in model.parameters():
-        parameter.data.zero_()
-    with torch.inference_mode(), torch.autocast('cpu', dtype=autocast_dtype(model)):
-        output = model(torch.zeros((1, 3, 32, 32, 32)))
-    assert torch.isfinite(output['flow']).all()
-
-
-def test_full_scan_scout_preserves_channels_coordinates_and_is_only_a_proposal(tmp_path,monkeypatch):
-    pytest.importorskip('torch')
-    import json
-    from types import SimpleNamespace
-    from fish_viewer.spots import scouting
-    model=tmp_path/'model';model.mkdir();(model/'best.pt').write_bytes(b'checkpoint')
-    (model/'proposal-model.json').write_text('{}')
-    dataset=SimpleNamespace(volumes=[np.zeros((20,)*3,np.float32)]*3,
-        spacing=(.15,)*3,center_origin=(10,20,30),metadata=SimpleNamespace(channels=[
-            SimpleNamespace(name=f'channel-{i}',color=(1,0,0)) for i in range(3)]))
-    monkeypatch.setattr(scouting,'load_dataset',lambda entry:dataset)
-    monkeypatch.setattr(scouting,'prepare',lambda *a,**kw:SimpleNamespace(channel=0,fingerprint='same'))
-    monkeypatch.setattr(scouting,'load',lambda *a:(object(),dict(threshold=.8,checkpoint='best.pt'),CenterConfig(),object()))
-    def predict(*args):
-        heat=np.zeros((96,)*3,np.float32);heat[8,9,10]=.9
-        heat[80,80,80]=.99  # Padding outside the scan cannot generate a candidate.
-        return heat,None
-    monkeypatch.setattr(scouting,'predict_volume',predict)
-    report=scouting.scout(tmp_path/'scan.ims',model,tmp_path/'runs',model,device='cpu')
-    assert report['status']=='complete' and report['candidate_only']
-    assert {p['channel'] for p in report['points']}=={1,2}
-    assert len(report['points'])==2
-    assert np.allclose(report['points'][0]['xyz'],[11.5,21.35,31.2])
-    assert all(p['cell_id']==0 for p in report['points'])
-    assert report['fingerprint']=='same'
-    assert json.loads((__import__('pathlib').Path(report['directory'])/'report.json').read_text())['candidate_count']==2

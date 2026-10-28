@@ -1,7 +1,0 @@
-mode,scan,cells,manual_matched,cells_with_signals,signals
-previous_crop_default,12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,17,3,7,10
-previous_crop_default,261012_HAG4withoutCu_Lam633_K9488c.ims,14,4,3,3
-previous_crop_default,040612_HAG50-2_Lam633m_K9546e.ims,88,9,16,16
-signal_first,12042013_dsLam-K9_Lam488_LBR644_Fits543_4.ims,16,3,7,10
-signal_first,261012_HAG4withoutCu_Lam633_K9488c.ims,12,4,3,3
-signal_first,040612_HAG50-2_Lam633m_K9546e.ims,59,9,13,13

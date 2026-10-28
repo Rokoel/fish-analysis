@@ -58,6 +58,8 @@ class RefinementConfig:
             raise ValueError('Invalid refinement safeguards.')
         if not 0 <= self.surface_loss_weight <= 1 or not .2 <= self.surface_distance_clip_um <= 5:
             raise ValueError('Invalid surface-distance loss settings.')
+        if self.residual_correction:
+            raise ValueError('Residual correction models are no longer supported.')
         if not .5 <= self.tversky_beta <= .8 or type(self.residual_correction) is not bool:
             raise ValueError('Invalid under-segmentation/correction settings.')
         return self

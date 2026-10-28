@@ -11,11 +11,3 @@ def bundled_model(name):
 
 def cached_audit(family):
     return ROOT / 'artifacts' / family / 'audit' / 'audit.json'
-
-
-def annotation_audit():
-    """The annotator reads original scans, so it only needs the audit metadata."""
-    cache = cached_audit('refinement-fish')
-    if cache.is_file():
-        return cache
-    return ROOT / 'training_metadata/refinement-fish/audit/audit.json'

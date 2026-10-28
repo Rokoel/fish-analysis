@@ -9,7 +9,7 @@ from ..models import Measurement
 
 def read_signals(path,expected_fingerprint=None):
     report=json.loads(Path(path).read_text())
-    if report.get('version')!=1 or report.get('engine') not in ('signal-cnn3d', 'signal-center-unet3d', 'signal-spotiflow3d') or report.get('mode')!='apply' or report.get('status')!='complete':
+    if report.get('version')!=1 or report.get('engine') not in ('signal-center-unet3d', 'signal-cnn3d', 'signal-spotiflow3d') or report.get('mode')!='apply' or report.get('status')!='complete':
         raise ValueError('Choose a completed signal application report.')
     if expected_fingerprint is not None and report.get('fingerprint')!=expected_fingerprint:
         raise ValueError('Signals belong to different image pixels.')

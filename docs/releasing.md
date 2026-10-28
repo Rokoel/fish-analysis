@@ -9,7 +9,7 @@ No FISH scans or local training caches are required or distributed.
 The release contains `FISH-Analysis-v<version>-windows-x64.exe` and
 `FISH-Analysis-v<version>-linux-x64.AppImage`. Each file contains the GUI,
 Python, Qt/VTK, Imaris export templates and
-all current analysis preset models. Both-detector consensus and the signal-center
+the five component model bundles for the two supported pipelines. Both-detector consensus and the signal-center
 3D U-Net remain the defaults. Linux downloads its verified neural runtime automatically on first launch, with a progress window.
 Windows includes the Visual Studio x64 redistributable DLLs app-locally, including
 `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll`; users do not need the
@@ -63,7 +63,7 @@ separate processes and fails if GPU mode cannot be used. `--device cpu` checks C
    a versioned cache before starting the neural workers.
 5. Actions runs the actual executable from a temporary directory outside the
    checkout, with external Python environment overrides removed. It verifies all
-   checkpoints and U-Net/Spotiflow empty-signal controls, then runs the full default
+   checkpoints and signal U-Net empty-signal controls, then runs the full default
    consensus pipeline on synthetic Imaris data. A non-empty contour/signal case
    checks volumes, A/B distances, Imaris round-trip and single-sheet Excel export.
 6. Only after both platforms pass are the binaries and checksums published.
@@ -114,3 +114,10 @@ APPIMAGE_EXTRACT_AND_RUN=1 FISH_RUNTIME_DOWNLOAD_DIR=/absolute/path/to/dist \
 ```
 
 Use `--device cpu` to test without an NVIDIA GPU.
+
+## Source bundle scope
+
+Only consensus and fine-tuned StarDist 2D models and their dependencies are staged.
+The local `reports/combined/` archive is excluded from Git and source/release bundles.
+The two current evaluation report bundles remain available. Original scans, archived
+training data, virtual environments, logs and scratch files are not distributed.

@@ -2,46 +2,58 @@
 
 [Documentation](README.md) · [Models](models.md) · [Analysis](fish-analysis.md)
 
-Use **Scan workflow / Export Imaris… → Export current result as Imaris…** after
-filtering cells without signals. Keep the exported `.ims` and `.imx` together and
-open the **`.imx` in Imaris** to load the image, contours, and signal centers.
-Opening the `.ims` alone loads the image. The CSV tables retain counts and scores.
+**Export edited Imaris…** and the pipeline's final export produce exactly two
+files: a standalone annotated `.ims` image and an Excel `.xlsx` workbook.
+Open the IMS directly. No external IMX, JSON or CSV companion is required.
+The workbook contains cell volumes and signal-to-border distances in
+**Measurements**, plus **Signal pairs** when cross-channel pairs are present.
 
-The exporter now uses a complete Imaris 6.3.1 scene template taken from
-`FISH/3abx3ad_101212/141212_3ab3ad_Lam633m_dsRed543_CG488b.imx`. The template is
-packaged with the application; exports do not require access to the FISH folder.
+## Standalone scene
 
-## What was corrected
+The IMS contains native `Scene/Content/SurfacesN` objects and `Scene/Data` XML,
+following the layout observed in the supplied Imaris 7.4.2 annotated scans.
+Vertices contain XYZ and normal XYZ; triangle indices are local to each surface.
+`TimeNVerticesNTriangles`, `TimeInfos`, material attributes and unique surface IDs
+link binary geometry to its XML viewer settings. Measurement points, independent
+distance lines and unmeshed section contours are stored in the native XML.
+Application/viewer defaults come from the packaged FISH Imaris 6.3.1 template;
+imported native object settings are preserved where available.
 
-The previous exporter generated a minimal XML scene that our own reader could
-open, but omitted native surface tracking properties, materials, creation and
-filter settings, `timeInfo`, frame settings, and application state. Its numeric
-mesh blocks were larger than those in the native examples. It also used a
-`LineMode` value absent from every measurement object in this collection.
-These were compatibility defects; the exact cause of the reported Imaris crash
-has not been reproduced in Imaris here.
+Each signal-to-border measurement uses A and B points. Each accepted cross-channel
+pair has its own two-point measurement line. Unrelated signals are never joined.
+Channel-pair distances use calibrated physical XYZ coordinates and the configured
+maximum separation within a cell/time point. Their Excel rows identify both
+signals, both channels, the distance and the cutoff.
 
-The replacement preserves the native field hierarchy and ordering, including
-the per-cell component groups. Surface timestamps come from the source image.
-Meshes use at most 400 records per XML block, 40 quoted lines per block, and
-10 records per line, matching the native files. Each record is six numbers for
-a vertex/normal or three triangle indices. Each signal has its own measurement
-object using the native `Polygon` mode, so unrelated signals are not connected.
-Signal-only reports contain one point. Measured results from **FISH Analysis**
-contain `A` and `B` with distance labels enabled. Component IDs are unique. The image filename remains relative for
-portability. XML has native-style CRLF line endings and no added declaration or
-comments. A provenance string is stored in the existing surface history field.
+Stable annotation identities, cell assignments, channel associations, scores,
+run provenance and pairing settings are embedded under `FISHAnalysis/Annotations`.
+This metadata is bound to a checksum of the exact scene XML. Imported annotations
+are pre-existing input to a new run, regardless of their names or old provenance.
+New annotations receive a UTC creation timestamp in their exported names;
+pre-existing names and timestamps remain intact.
 
-The `.ims` is copied byte for byte and its SHA-256 is verified. All image channels,
-time points, resolutions, metadata, compression, and calibration remain unchanged.
-The scene thumbnail comes from the source image, avoiding the original scene's
-annotated screenshot. Original files are never modified and existing outputs are
-never overwritten. Re-export old results to obtain the corrected scene format.
+## Image preservation
 
-## Create an annotation-free test copy
+For HDF5 IMS input, the exporter copies the image and replaces scene data only in
+the copy. All image datasets, channels, time points, resolutions, metadata,
+compression and calibration remain unchanged. The whole-file checksum changes
+because annotations are embedded. Legacy TIFF-based Imaris images are converted
+to an HDF5 IMS containing the same channel/time voxel arrays and acquisition
+metadata. Original images and scene companions are opened read-only and never
+overwritten. Existing export files are protected against overwriting.
 
-Historical test exports were removed during cleanup. The original source scan
-and packaged scene template remain. Generate a new pair in a fresh output folder:
+Unknown annotation schemas are reported and block export to avoid silently
+losing objects. Before publishing, the exporter reopens the IMS without a
+companion and checks coordinates, topology, times, labels and line connections.
+Regression tests also cover relocation, repeated analysis/import/export, pairing,
+workbook values and unchanged source voxels across all times and resolutions.
+This example-derived compatibility profile is not an official vendor schema;
+Imaris itself is unavailable here, so opening new exports in Imaris has not been
+verified in this environment.
+
+## Annotation-free test copy
+
+The diagnostic `unannotated` command produces a standalone IMS without annotations:
 
 ```bash
 .venv/bin/python -m fish_viewer.workflow unannotated \
@@ -49,28 +61,7 @@ and packaged scene template remain. Generate a new pair in a fresh output folder
   --output 'artifacts/my-test/unannotated.ims'
 ```
 
-For a processed export, use the Analysis app or Viewer workflow and retain the
-`.ims`/`.imx` pair. Source-file and template regression checks live in
-[`test_imaris_compatibility.py`](../tests/test_imaris_compatibility.py).
-
-## Validation scope
-
-The collection audit found 381 HDF5 images containing only `DataSet`, `DataSetInfo`,
-and `Thumbnail`, plus 11 legacy TIFF images. None has an embedded scene. The 396
-scene companions comprise 385 Imaris 6.3.1 scenes and 11 Imaris 5.0.1 scenes.
-All 3,455 Imaris 6 measurement objects use `Polygon` line mode.
-
-Regression tests compare the generated hierarchy, attribute names, and field order
-directly to the original Imaris-written example, verify mesh block boundaries,
-coordinates, normals, triangle indices, timestamps, image hashes, relocation,
-and annotation removal. They also reject malformed scenes that our permissive
-display reader could otherwise accept. The packaged wheel includes the template.
-
-This is an example-derived compatibility profile, not an official vendor schema.
-Imaris itself is not available in this environment, so opening the files in Imaris
-has **not** been verified. Current exports use the FISH 6.3.1 scene format; opening
-them in Imaris 5 is not a supported target. Embedded `Scene`/`Scene8` XML and recognized HDF5 mesh/spot layouts are read.
-Export removes stale scene groups from a copied image and writes the current
-annotations to the companion `.imx`. Image datasets remain unchanged, although
-the whole-file checksum changes when embedded scenes are removed. Unsupported
-scene objects are reported and block export to avoid silent annotation loss.
+This diagnostic does not create a measurement workbook. Source-file and scene
+regression checks live in
+[test_imaris_compatibility.py](../tests/test_imaris_compatibility.py) and
+[test_signal_pairs.py](../tests/test_signal_pairs.py).

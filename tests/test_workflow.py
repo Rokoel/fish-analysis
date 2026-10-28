@@ -102,16 +102,19 @@ def test_imaris_export_is_portable_and_preserves_all_image_bytes(signal_result, 
     target = tmp_path / 'export' / 'cells & signals.ims'
     output = export_result(Path(report['directory']) / 'report.json', target)
     assert output['cells'] == output['signals'] == 2
-    assert target.read_bytes() == original_bytes == original_image.read_bytes()
+    assert original_bytes == original_image.read_bytes()
+    assert {p.name for p in target.parent.iterdir()} == {target.name, target.with_suffix('.xlsx').name}
     exported = load_dataset(entry_for_path(target))
     assert len(exported.scene.surfaces) == 2
     assert len(exported.scene.measurements) == 2
     assert not exported.scene.warnings
     for original, copied in zip(source_surfaces, exported.scene.surfaces):
         np.testing.assert_allclose(original.vertices, copied.vertices)
-        assert copied.source == 'prediction'
+        assert copied.source == 'manual'
+        assert copied.run_id == output['annotation_run_id']
     for group, point in zip(exported.scene.measurements, report['points']):
-        assert group.source == 'signal_prediction' and group.edges == []
+        assert group.source == 'manual' and group.edges == []
+        assert group.run_id == output['annotation_run_id']
         assert f'cell {point["cell_id"]}' in group.labels[0]
         assert str(point['score']) in group.labels[0]
         np.testing.assert_allclose(group.points[0], point['xyz'])
@@ -121,13 +124,14 @@ def test_imaris_export_is_portable_and_preserves_all_image_bytes(signal_result, 
             original = load_dataset(LibraryEntry(original_image), selected_time, level)
             reopened = load_dataset(entry_for_path(target), selected_time, level)
             for a, b in zip(original.volumes, reopened.volumes):np.testing.assert_array_equal(a, b)
-    assert sum(row['count'] for row in json.loads(target.with_suffix('.annotations.json').read_text())['counts']) == 2
+    from fish_viewer.annotation_state import annotation_report
+    assert sum(row['count'] for row in annotation_report(exported)['counts']) == 2
     relocated = tmp_path / 'moved'
     shutil.move(str(target.parent), relocated)
     shutil.rmtree(Path(report['directory']).parent)
     shutil.rmtree(signal_result.parent)
     original_image.unlink()
-    for suffix in ('.ims', '.imx'):
+    for suffix in ('.ims',):
         entry = entry_for_path(relocated / target.with_suffix(suffix).name)
         standalone = load_dataset(entry)
         assert len(standalone.scene.surfaces) == 2
@@ -151,7 +155,7 @@ def test_export_refuses_overwrite_and_cleans_up_on_cancel(signal_result, tmp_pat
     from fish_viewer.pipeline.segmentation import Cancelled
     report = filter_result(signal_result, tmp_path / 'runs')
     path = Path(report['directory']) / 'report.json'
-    existing = tmp_path / 'existing.imx'
+    existing = tmp_path / 'existing.xlsx'
     existing.write_text('Keep this file')
     with pytest.raises(FileExistsError):export_result(path, existing.with_suffix('.ims'))
     assert existing.read_text() == 'Keep this file'

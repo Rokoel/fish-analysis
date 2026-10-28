@@ -5,13 +5,13 @@ import pytest
 import json
 
 from fish_viewer.neural.config import NeuralConfig
-from fish_viewer.neural.precision import precision_preset,balanced_preset,membrane_evidence,evidence_passes
+from fish_viewer.neural.precision import evidence_preset,membrane_evidence,evidence_passes
 from fish_viewer.neural.data import add_synthetic_background
 
 
-@pytest.mark.parametrize('preset',[precision_preset,balanced_preset])
-def test_visible_closed_membrane_required_in_all_directions(preset):
-    config=preset(NeuralConfig())
+@pytest.mark.parametrize('support',[.5,.65])
+def test_visible_closed_membrane_required_in_all_directions(support):
+    config=replace(evidence_preset(NeuralConfig()),membrane_support=support)
     grid=np.indices((48,)*3);radius=np.linalg.norm((grid-23.5)*.3,axis=0)
     mask=radius<3;shell=np.exp(-((radius-3)/.25)**2)
     images=[shell,np.zeros_like(shell),np.ones_like(shell),shell*(grid[0]>24),np.roll(shell,7,axis=1)]
@@ -23,7 +23,7 @@ def test_visible_closed_membrane_required_in_all_directions(preset):
     assert accepted==[True,False,False,False,False]
 
 
-def test_balanced_selection_uses_negative_controls_and_bounded_recall():
+def test_validation_selection_uses_negative_controls_and_bounded_recall():
     from fish_viewer.neural.selection import choose_candidate
     def row(index,recall,count,passed=True):
         return dict(index=index,controls=dict(passed=passed),eligible_reference_count=100,
@@ -35,16 +35,16 @@ def test_balanced_selection_uses_negative_controls_and_bounded_recall():
     with pytest.raises(ValueError):choose_candidate(rows[:1])
 
 
-def test_balanced_accepts_visible_elongated_cell_without_accepting_empty_image():
+def test_shape_limits_accept_visible_elongated_cell_without_accepting_empty_image():
     from fish_viewer.neural.engine import filter_instances
     grid=(np.indices((64,)*3)-31.5)*.3
     radius=np.sqrt((grid[0]/1.7)**2+grid[1]**2+grid[2]**2)
     labels=(radius<3).astype(np.uint32)
     prepared=SimpleNamespace(image=np.exp(-((radius-3)/.25)**2),spacing=(.3,)*3,origin=(0.,)*3)
-    assert len(filter_instances(labels,prepared,precision_preset(NeuralConfig())).cells)==0
-    assert len(filter_instances(labels,prepared,balanced_preset(NeuralConfig())).cells)==1
+    assert len(filter_instances(labels,prepared,replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.72,max_elongation=1.5,probability_threshold=.75,select_balanced_acceptance=False)).cells)==0
+    assert len(filter_instances(labels,prepared,replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.65,max_elongation=1.8)).cells)==1
     prepared.image=np.zeros_like(prepared.image)
-    assert len(filter_instances(labels,prepared,balanced_preset(NeuralConfig())).cells)==0
+    assert len(filter_instances(labels,prepared,replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.65,max_elongation=1.8)).cells)==0
 
 
 def test_acceptance_selection_evaluates_only_supplied_validation_cases(tmp_path,monkeypatch):
@@ -63,7 +63,7 @@ def test_acceptance_selection_evaluates_only_supplied_validation_cases(tmp_path,
         return SimpleNamespace(labels=labels,rejected={}),metrics
     monkeypatch.setattr(engine,'predict',predict)
     monkeypatch.setattr(controls,'evaluate_controls',lambda *args:dict(passed=True,controls=[]))
-    selected,report=select_acceptance(None,[case],balanced_preset(NeuralConfig()),lambda e:None)
+    selected,report=select_acceptance(None,[case],replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.65,max_elongation=1.8),lambda e:None)
     assert visited==[case.entry.image]*4
     assert report['target_met'] and selected.probability_threshold==.65
 
@@ -77,8 +77,8 @@ def test_synthetic_controls_do_not_relabel_unknown_source_regions():
     assert x[1].max()<.02 and np.isfinite(x[1]).all()
 
 
-def test_precision_preset_forbids_reference_only_calibration():
-    config=precision_preset(NeuralConfig()).validate()
+def test_visible_evidence_forbids_reference_only_calibration():
+    config=replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.72,max_elongation=1.5,probability_threshold=.75,select_balanced_acceptance=False).validate()
     assert config.probability_threshold==.75 and config.exclude_border
     with pytest.raises(ValueError,match='Dice-only'):
         replace(config,calibrate_probability=True).validate()
@@ -107,7 +107,7 @@ def test_precision_controls_and_phase_progress(qapp):
     window=MainWindow(off_screen=True)
     try:
         window.show_neural();panel=window.neural_panel
-        panel.use_precision_preset()
+        panel.use_evidence_preset()
         assert panel.config().precision_mode and not panel.config().calibrate_probability
         panel.handle_event(dict(kind='progress',phase='Training',current=27,total=200,epoch=12,epochs=120))
         assert panel.epoch_label.text()=='Epoch 12 / 120'
@@ -127,14 +127,14 @@ def test_choosing_model_restores_its_acceptance_policy(qapp,tmp_path):
     window=MainWindow(off_screen=True)
     try:
         window.show_neural();panel=window.neural_panel
-        panel.use_precision_preset()
-        config=balanced_preset(NeuralConfig())
+        panel.use_evidence_preset()
+        config=replace(evidence_preset(NeuralConfig()),use_shape_filter=True,min_sphericity=.65,max_elongation=1.8)
         (tmp_path/'fish-model.json').write_text(json.dumps(dict(engine='stardist3d',config=asdict(config))))
         panel.model_path.setText(str(tmp_path));panel.restore_chosen_model()
         assert panel.config().probability_threshold==.55
         assert panel.config().max_elongation==1.8
-        panel.use_precision_preset()
-        assert not panel.config().select_balanced_acceptance
+        panel.use_evidence_preset()
+        assert not panel.config().use_shape_filter and not panel.config().calibrate_probability
     finally:window.close();qapp.processEvents()
 
 

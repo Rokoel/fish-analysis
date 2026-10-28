@@ -80,7 +80,7 @@ def publish_runtime_archive(internal, output, tag):
                 target.unlink()
                 break
             parts.append(dict(name=name, size=size, sha256=digest.hexdigest(),
-                              url=f'https://github.com/Rokoel/cell-nn/releases/download/{tag}/{name}'))
+                              url=f'https://github.com/Rokoel/fish-analysis/releases/download/{tag}/{name}'))
             index += 1
     manifest['parts'] = parts
     manifest_path.write_text(json.dumps(manifest), encoding='utf-8')

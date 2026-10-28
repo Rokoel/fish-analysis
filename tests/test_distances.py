@@ -72,15 +72,17 @@ def test_measured_export_preserves_native_ab_lines_counts_and_csv(signal_result,
         np.testing.assert_allclose(m.points[0], point['xyz'])
         np.testing.assert_allclose(m.points[1], point['border_xyz'])
         assert m.length == pytest.approx(point['distance_um'])
-    root = ET.parse(target.with_suffix('.imx')).getroot()
+    import h5py
+    from openpyxl import load_workbook
+    with h5py.File(target) as image:
+        root = ET.fromstring(image['Scene/Data'][0].tobytes())
     assert all(m.find('LineLabels').get('Distance') == 'true' for m in root.iter('bpMeasurementPoints'))
-    with target.with_suffix('.signals.csv').open() as stream:
-        rows = list(csv.DictReader(stream))
-    assert len(rows) == 2 and float(rows[0]['distance_um']) == pytest.approx(measured['points'][0]['distance_um'])
-    assert int(rows[0]['channel']) == 2
-    assert float(rows[0]['cell_volume_um3']) > 0
-    assert target.with_suffix('.xlsx').exists()
-    assert all(key in rows[0] for key in ('b_x_um', 'b_y_um', 'b_z_um'))
+    workbook = load_workbook(target.with_suffix('.xlsx'))
+    rows = list(workbook['Measurements'].values)[1:]
+    assert len(rows) == 2 and rows[0][-1] == pytest.approx(measured['points'][0]['distance_um'])
+    assert rows[0][4] == 2 and rows[0][2] > 0
+    workbook.close()
+    assert not target.with_suffix('.signals.csv').exists()
     again = filter_result(path, tmp_path / 'again')
     assert 'measurement' not in again and all('border_xyz' not in p for p in again['points'])
 
@@ -130,7 +132,7 @@ def test_focused_app_opens_relocated_measurements_and_small_window(qapp, signal_
     filtered = filter_result(signal_result, run / 'work')
     measured = measure_result(Path(filtered['directory']) / 'report.json', run / 'work')
     export = export_result(Path(measured['directory']) / 'report.json', run / 'export/result.ims')
-    manifest = dict(engine='fish-analysis', status='complete', image='export/result.ims', scene='export/result.imx',
+    manifest = dict(engine='fish-analysis', status='complete', image='export/result.ims', scene=None,
                     signal_report=str((Path(measured['directory']) / 'report.json').relative_to(run)))
     (run / 'analysis-result.json').write_text(json.dumps(manifest))
     moved = tmp_path / 'relocated'

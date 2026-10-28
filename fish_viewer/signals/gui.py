@@ -9,7 +9,7 @@ from ..project_paths import bundled_model
 
 from PySide6 import QtCore,QtGui,QtWidgets
 
-from ..pipeline.gui import PlotCanvas
+from ..training_gui import PlotCanvas
 
 
 class SignalPanel(QtWidgets.QWidget):
@@ -27,10 +27,7 @@ class SignalPanel(QtWidgets.QWidget):
         layout.addLayout(row)
         form=QtWidgets.QFormLayout()
         self.model_path=QtWidgets.QLineEdit()
-        refreshed=root/'artifacts/signal-refresh/data/audit.json'
-        safe=root/'artifacts/signal-refresh/safe-labels/audit.json'
-        if safe.exists():refreshed=safe
-        self.audit_path=QtWidgets.QLineEdit(str(refreshed if refreshed.exists() else root/'artifacts/signal-fish/audit/audit.json'))
+        self.audit_path=QtWidgets.QLineEdit()
         self.output=QtWidgets.QLineEdit(str(root/'signal_runs'))
         bundled=bundled_model('signals-center-unet')
         if (bundled/'signal-model.json').is_file():self.model_path.setText(str(bundled))
@@ -61,7 +58,7 @@ class SignalPanel(QtWidgets.QWidget):
         actions.addWidget(self.show_button);actions.addWidget(folder_button);result_layout.addLayout(actions)
         workflow_button=QtWidgets.QPushButton('Filter cells / Export Imaris…')
         workflow_button.clicked.connect(self.open_workflow);result_layout.addWidget(workflow_button)
-        note=QtWidgets.QLabel('Signal channels are inferred from A markers during training. Detection scores are classifier scores, not calibrated confidence. Training precision/recall cover annotated cell regions only.')
+        note=QtWidgets.QLabel('Signal channels are inferred from A markers during training. Detection scores are learned heatmap scores, not calibrated confidence. Training precision/recall cover annotated cell regions only.')
         note.setWordWrap(True);result_layout.addWidget(note);self.tabs.addTab(results,'Results / counts')
         self.timer=QtCore.QTimer(self);self.timer.setInterval(2000);self.timer.timeout.connect(self.refresh_report)
         self.draw()
@@ -74,6 +71,7 @@ class SignalPanel(QtWidgets.QWidget):
 
     def start(self):
         if self.job:return
+        root=Path(__file__).resolve().parents[2]
         if self.host.workflow_panel and self.host.workflow_panel.busy:
             self.error('Wait for the scan workflow to finish, or cancel it first.');return
         self.timer.stop();self.watched=None
@@ -81,7 +79,7 @@ class SignalPanel(QtWidgets.QWidget):
         arguments=['-m','fish_viewer.signals','--mode',mode,'--output',self.output.text(),'--device',self.device.currentText()]
         if mode=='train':
             if not Path(self.audit_path.text()).is_file():self.error('Choose a completed signal audit.');return
-            arguments+=['--audit',self.audit_path.text(),'--epochs',str(self.epochs.value())]
+            arguments=[str(root / 'scripts/train_signal_centers.py'), '--index', self.audit_path.text(), '--output', str(Path(self.output.text()) / ('unet-training-'+uuid.uuid4().hex[:10])), '--epochs', str(self.epochs.value()), '--device', 'cuda' if self.device.currentText() == 'gpu' else self.device.currentText()]
         else:
             entry=self.host.entry
             if entry is None or self.host._pending_load:self.error('Open a scan first.');return
@@ -91,7 +89,8 @@ class SignalPanel(QtWidgets.QWidget):
             arguments+=['--image',str(entry.image),'--cell-predictions',str(archive),'--model',self.model_path.text()]
             if entry.scene:arguments+=['--scene',str(entry.scene)]
         job_dir=Path(self.output.text()).resolve()/'.jobs'/uuid.uuid4().hex;job_dir.mkdir(parents=True)
-        self.cancel_file=job_dir/'cancel';arguments+=['--cancel-file',str(self.cancel_file)]
+        self.cancel_file=job_dir/'cancel'
+        arguments+=['--cancel-file',str(self.cancel_file)]
         self.buffer=b'';self.finished_report=None;self.run_directory=None;self.stderr='';self.history=[];self.report=None
         self.draw();self.show_button.setEnabled(False);self.summary.setText('Processing…')
         self.job=QtCore.QProcess(self)
@@ -102,7 +101,8 @@ class SignalPanel(QtWidgets.QWidget):
         self.run_button.setEnabled(False);self.cancel_button.setEnabled(True);self.mode.setEnabled(False)
         self.phase.setText('Starting signal worker…');self.tabs.setCurrentIndex(0)
         self.epoch_label.setText('Applying saved signal model' if mode=='apply' else f'Epoch — / {self.epochs.value()}')
-        self.job.start(sys.executable,arguments)
+        from ..spots.runtime import interpreter
+        self.job.start(interpreter() if mode == 'train' else sys.executable,arguments)
 
     def read_events(self):
         if not self.job:return
@@ -139,7 +139,7 @@ class SignalPanel(QtWidgets.QWidget):
             self.phase.setText('Signal worker failed');self.error(self.stderr[-1500:] or 'The signal worker failed to start.')
 
     def display_report(self,report):
-        if report.get('engine') not in ('signal-cnn3d', 'signal-center-unet3d', 'signal-spotiflow3d') or report.get('mode') not in ('train', 'apply'):raise ValueError('Choose a signal training or single-scan application report.')
+        if report.get('engine') not in ('signal-center-unet3d', 'signal-cnn3d', 'signal-spotiflow3d') or report.get('mode') not in ('train', 'apply'):raise ValueError('Choose a signal training or single-scan application report.')
         self.report=report;self.history=report.get('epochs',[]);self.draw()
         if report.get('progress'):self.update_progress(report['progress'])
         if report.get('model_directory'):self.model_path.setText(report['model_directory'])

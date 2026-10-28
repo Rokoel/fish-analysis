@@ -85,9 +85,6 @@ def build(signal_audit, output, config=None, emit=print):
         raise ValueError('Completed split-safe cell/signal audits are required.')
     sources = {s['image']: s for s in collection['sources']}
     cases = {c['image']: c for c in collection['cases']}
-    excluded = {'18327antiLAD2.ims', '18327antiLAD3.ims', '18327antiLAD5.ims', '3AantiLADFITCTyrCy5_546.ims'}
-    if any(Path(alias).name in excluded for c in previous['cases'] for alias in c['aliases']):
-        raise ValueError('The four excluded scans must stay excluded.')
     groups = {s: {c['group'] for c in previous['cases'] if c['split'] == s} for s in ('training', 'validation', 'test')}
     if any(groups[a] & groups[b] for a, b in [('training', 'validation'), ('training', 'test'), ('validation', 'test')]):
         raise ValueError('Acquisition leakage between folds.')

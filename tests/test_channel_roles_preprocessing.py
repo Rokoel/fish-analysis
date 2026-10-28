@@ -54,23 +54,22 @@ def test_preprocessing_never_becomes_border_acceptance_evidence(monkeypatch):
     assert evidence['rim_intensity']==0 and evidence['membrane_support']==0
 
 
-def test_controller_forced_roles_reach_both_signal_first_workers(tmp_path,monkeypatch):
-    controller=AnalysisController();launches=[]
-    monkeypatch.setattr(controller,'_launch',lambda i,args:launches.append((i,args)))
+def test_controller_forced_roles_reach_consensus_workers(tmp_path,monkeypatch):
+    controller=AnalysisController()
+    monkeypatch.setattr(controller,'_launch',lambda *args:None)
     image=tmp_path/'scan.ims';image.touch()
-    controller.start(image,tmp_path/'runs',default_proposal_model(),default_models()[1],
-        refinement=default_refinement_model(),signal_first=True,cell_channel=2,signal_channels=[0,1])
-    args=launches[0][1]
-    assert args[args.index('--cell-channel')+1]=='2'
-    assert args[args.index('--signal-channels')+1:]==['0','1']
-    assert controller.cell_arguments[-2:]==['--cell-channel','2']
+    controller.start(image,tmp_path/'runs',cell_channel=2,signal_channels=[0,1])
+    request=json.loads((controller.directory/'cells-request.json').read_text())
+    assert request['config']['cell_channel']==2
+    assert controller.cell_channel_arguments==['--cell-channel','2']
+    assert controller.signal_channel_arguments==['--signal-channels','0','1']
     assert controller.state['channel_roles']==dict(cell=2,signals=[0,1])
 
 
 def test_stardist_request_uses_forced_cell_channel(tmp_path,monkeypatch):
     controller=AnalysisController();monkeypatch.setattr(controller,'_launch',lambda *a:None)
     image=tmp_path/'scan.ims';image.touch()
-    controller.start(image,tmp_path/'runs',default_models()[0].parent/'cells-conservative',default_models()[1],cell_channel=1,signal_channels=[0])
+    controller.start(image,tmp_path/'runs',default_models()[0],default_models()[1],cell_channel=1,signal_channels=[0])
     request=json.loads((controller.directory/'cells-request.json').read_text())
     assert request['config']['cell_channel']==1
 
@@ -132,19 +131,6 @@ def test_saved_preprocessing_recipe_is_required_and_checked():
     with pytest.raises(ValueError):validate_manifest(dict(config=dict(preprocessing='membrane-connected-v1')))
 
 
-@pytest.mark.gui
-def test_preprocessed_preset_uses_its_checkpoint_without_refinement(qapp,tmp_path):
-    from fish_viewer.analysis.app import AnalysisWindow
-    settings=QtCore.QSettings(str(tmp_path/'preset.ini'),QtCore.QSettings.Format.IniFormat)
-    window=AnalysisWindow(settings=settings)
-    try:
-        window.pipeline.setCurrentIndex(window.pipeline.findData('hybrid'))
-        assert window.stardist_proposals.isChecked()
-        window.pipeline.setCurrentIndex(window.pipeline.findData('preprocessed'))
-        assert Path(window.cell_model.text()).name=='cells-preprocessed'
-        assert not window.boundary_model.text() and not window.stardist_proposals.isChecked()
-        assert Path(window.signal_model.text()).name=='signals-center-unet'
-    finally:window.close()
 
 
 def test_stardist2d_preset_and_worker_preserve_channel_roles(qapp,tmp_path,monkeypatch):
@@ -153,16 +139,16 @@ def test_stardist2d_preset_and_worker_preserve_channel_roles(qapp,tmp_path,monke
     settings=QtCore.QSettings(str(tmp_path/'slice.ini'),QtCore.QSettings.Format.IniFormat)
     window=AnalysisWindow(settings=settings)
     try:
-        window.pipeline.setCurrentIndex(window.pipeline.findData('hybrid'))
+        window.pipeline.setCurrentIndex(window.pipeline.findData('consensus'))
         window.pipeline.setCurrentIndex(window.pipeline.findData('stardist2d'))
         assert Path(window.cell_model.text()).name=='cells-stardist2d'
         assert Path(window.signal_model.text()).name=='signals-center-unet'
-        assert not window.boundary_model.text() and not window.stardist_proposals.isChecked()
+        assert not window.boundary_model.text()
         scan=tmp_path/'scan.ims';scan.touch()
         controller=AnalysisController();launched=[]
         monkeypatch.setattr(controller,'_launch',lambda index,args:launched.append((index,args)))
         controller.start(scan,tmp_path/'runs',window.cell_model.text(),window.signal_model.text(),
-            cell_channel=1,signal_channels=[0],roundness=.72)
+            cell_channel=1,signal_channels=[0],roundness=.82)
         args=launched[0][1]
         assert args[:2]==['-m','fish_viewer.neural.slice_inference']
         assert args[args.index('--cell-channel')+1]=='1'

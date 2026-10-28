@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from configparser import ConfigParser
+from contextlib import nullcontext
 from pathlib import Path
 import os
 import xml.etree.ElementTree as ET
@@ -166,6 +167,23 @@ class ImarisReader:
                 # Binary object data accompanies XML viewer settings; prefer full
                 # XML geometry when present, otherwise use the binary objects.
                 if parsed.surfaces: result.surfaces = parsed.surfaces
+                else:
+                    from .scenes import appearance
+                    root = ET.fromstring(data.rstrip(b'\x00'))
+                    for viewer in root.iter('bpSurfacesViewer'):
+                        ident = viewer.find('bpSurfacesId')
+                        if ident is None:
+                            ident = viewer.find('bpSurfaces/bpSurfacesId')
+                        if ident is None:
+                            continue
+                        _, color, visible = appearance(viewer)
+                        props = viewer.find('bpSurfacesProperties')
+                        for surface in result.surfaces:
+                            if surface.native_id == ident.get('Value'):
+                                surface.native_xml = ET.tostring(viewer)
+                                surface.color, surface.visible = color, visible
+                                if props is not None:
+                                    surface.opacity = float(np.clip(1 - float(props.get('mTransparency', '.68')), 0, 1))
                 if parsed.measurements: result.measurements = parsed.measurements
                 result.contours.extend(parsed.contours)
                 result.warnings.extend(parsed.warnings)
@@ -185,6 +203,16 @@ def entry_for_path(path: str | Path) -> LibraryEntry:
         return LibraryEntry(image, path)
     if path.suffix.lower() != '.ims':
         raise ValueError('Select an .ims image or .imx scene file.')
+    # A native IMS scene is authoritative when the image itself is opened.
+    # Another saved IMX (including an intentionally empty scene) can reference
+    # these same pixels; it must not silently hide the IMS's own annotations.
+    if h5py.is_hdf5(path):
+        with h5py.File(path, 'r') as image:
+            if 'FISHAnalysis/Annotations' in image:
+                return LibraryEntry(path)
+            for key in ('Scene8/Content', 'Scene/Content'):
+                if key in image and isinstance(image[key], h5py.Group) and len(image[key]):
+                    return LibraryEntry(path)
     companions = sorted((p for p in path.parent.iterdir() if p.suffix.lower() == '.imx'), key=lambda p: p.name.casefold())
     matching = [p for p in companions if p.stem.casefold() == path.stem.casefold()]
     for candidate in matching + [p for p in companions if p not in matching]:
@@ -228,6 +256,11 @@ def load_dataset(entry: LibraryEntry, time=0, level=0, progress=None) -> Dataset
             scene = Scene(warnings=[f'Cannot read {entry.scene.name}: {exc}'], source=entry.scene)
     else:
         scene = reader.embedded_scene()
-        if not scene.surfaces and not scene.measurements and not scene.warnings:
-            scene.warnings.append('No saved annotations found. Keep the .imx companion beside the .ims image.')
-    return Dataset(reader.metadata, scene, reader.read(time, level, progress), time, level)
+        if not scene.surfaces and not scene.measurements and not scene.contours and not scene.warnings:
+            with h5py.File(reader.path, 'r') if reader.hdf else nullcontext({}) as image:
+                if 'FISHAnalysis/Annotations' not in image:
+                    scene.warnings.append('No saved annotations found.')
+    dataset = Dataset(reader.metadata, scene, reader.read(time, level, progress), time, level)
+    from .annotation_state import read_scene_state
+    read_scene_state(dataset)
+    return dataset

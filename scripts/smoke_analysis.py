@@ -20,13 +20,9 @@ parser.add_argument('--package-root', type=Path, help='Verify the distributed so
 parser.add_argument('--boundary-model', type=Path, help='Exercise the optional seeded 3D U-Net stage')
 parser.add_argument('--cell-model', type=Path, help='Select StarDist or the center-and-box detector')
 parser.add_argument('--signal-model', type=Path, help='Exercise a selected signal checkpoint')
-parser.add_argument('--membrane-snap', action='store_true', help='Exercise local membrane peak refinement')
-parser.add_argument('--learned-boundary', action='store_true', help='Exercise annotation-trained 2D boundary guidance')
-parser.add_argument('--cell-consensus', action='store_true', help='Exercise agreement between both cell pipelines')
-parser.add_argument('--stardist-proposals', action='store_true', help='Exercise strict StarDist proposal redrawing')
-parser.add_argument('--cell-recovery', action='store_true', help='Exercise local membrane, retry and signal-guided cell recovery')
-parser.add_argument('--pipeline', choices=['conservative','balanced','crop','hybrid','consensus','signal-first','preprocessed','stardist2d'])
-parser.add_argument('--roundness', type=float, default=.72)
+parser.add_argument('--pipeline', choices=['consensus','stardist2d'], default='consensus')
+parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--roundness', type=float, default=.82)
 parser.add_argument('--cell-channel',type=int)
 parser.add_argument('--signal-channels',nargs='+',type=int)
 args = parser.parse_args()
@@ -36,7 +32,7 @@ import numpy as np
 from PySide6 import QtCore, QtWidgets
 from fish_viewer.analysis.app import AnalysisWindow
 from fish_viewer.workflow.distances import SurfaceLocator
-output = Path('artifacts/analysis-smoke') / datetime.now().strftime('%Y%m%d-%H%M%S')
+output = args.output.resolve()
 output.mkdir(parents=True)
 app = QtWidgets.QApplication([])
 app.setStyle('Fusion')
@@ -83,15 +79,6 @@ def exercise():
         if args.pipeline:
             window.pipeline.setCurrentIndex(window.pipeline.findData(args.pipeline))
         window.roundness.setValue(round(args.roundness*100))
-        window.membrane_snap.setChecked(args.membrane_snap)
-        window.learned_boundary.setChecked(args.learned_boundary)
-        window.cell_recovery.setChecked(args.cell_recovery)
-        if args.stardist_proposals or args.cell_consensus:
-            window.stardist_proposals.setChecked(True)
-        if args.cell_consensus:
-            window.consensus_cells.setChecked(True)
-        if args.membrane_snap or args.learned_boundary:
-            window.options_button.setChecked(True)
         if args.boundary_model:
             window.boundary_model.setText(str(args.boundary_model.resolve()))
         if args.cell_model:
@@ -117,21 +104,6 @@ def exercise():
         wait(lambda: not window.running and not window.loading)
         assert window.result_path
         report = window.result_report
-        if args.cell_consensus:
-            stages=json.loads(window.result_path.read_text())['stages']
-            assert 'consensus_cells' in stages and 'consensus' in stages
-            assert report['cell_consensus']['matches']
-        if args.cell_recovery:
-            stages=json.loads(window.result_path.read_text())['stages']
-            assert 'guide_signals' in stages and 'recover' in stages
-            assert report['cell_recovery']['signal_guided_summary']
-        if args.membrane_snap:
-            assert report['membrane_snap']['cells'], 'Missing membrane peak diagnostics'
-            assert 'snap' in json.loads(window.result_path.read_text())['stages']
-        if args.learned_boundary:
-            assert report['membrane_snap']['boundary_model']
-            assert report['membrane_snap']['boundary_checkpoint_sha256']
-            assert 'snap' in json.loads(window.result_path.read_text())['stages']
         if window.boundary_model.text():
             assert report['boundary_refinement']['cells'], 'Missing boundary diagnostics'
             stages=json.loads(window.result_path.read_text())['stages']
@@ -146,7 +118,7 @@ def exercise():
         exported = json.loads(window.result_path.read_text())
         workbook_path = next(window.result_path.parent / p for p in exported['files'] if p.endswith('.xlsx'))
         workbook = load_workbook(workbook_path, data_only=True)
-        assert workbook.sheetnames == ['Measurements']
+        assert 'Measurements' in workbook.sheetnames
         nn_distances = [r for r in list(workbook['Measurements'].values)[1:] if r[0]=='Program' and r[3] is not None]
         nn_volumes = {r[1] for r in list(workbook['Measurements'].values)[1:] if r[0]=='Program'}
         assert len(nn_distances) == len(report['points'])
@@ -162,19 +134,19 @@ def exercise():
         finally:
             QtWidgets.QFileDialog.getSaveFileName = original_dialog
         workbook = load_workbook(button_path, data_only=True)
-        assert workbook.sheetnames == ['Measurements']
+        assert 'Measurements' in workbook.sheetnames
         edited_rows=list(workbook['Measurements'].values)[1:]
         edited_distances=[r[-1] for r in edited_rows if r[0]=='Program' and r[3] is not None]
         assert np.allclose(sorted(edited_distances),sorted(r[-1] for r in nn_distances),atol=1e-5)
         workbook.close()
         assert digest(window.dataset.metadata.path) == original_hash == digest(args.image)
-        surfaces = {int(s.name.split()[2]): SurfaceLocator(s) for s in window.dataset.scene.surfaces}
+        surfaces = {s.uid: SurfaceLocator(s) for s in window.dataset.scene.surfaces if s.source == 'prediction'}
         for point in report['points']:
             locator = surfaces[point['cell_id']]
             b, shortest, _ = locator.closest(point['xyz'])
             assert abs(shortest-point['distance_um']) < 1e-5
             assert locator.closest(point['border_xyz'])[1] < 1e-5
-        assert all(m.labels == ['A', 'B'] and m.edges == [(0, 1)] for m in window.dataset.scene.measurements)
+        assert all(m.edges == [(0, 1)] for m in window.dataset.scene.measurements if m.source == 'signal_prediction' and len(m.points) == 2)
         window.tabs.setCurrentIndex(1)
         app.processEvents()
         window.grab().save(str(output / 'distances.png'))
@@ -197,7 +169,6 @@ def exercise():
                        device=args.device,
                        boundary_model=window.boundary_model.text() or None,
                        signal_model=window.signal_model.text(),
-                       membrane_snap=args.membrane_snap,
                        cells=len(report['signal_filter']['kept_cell_ids']), signals=len(report['points']),
                        excel=str(workbook_path), volumes_um3=[r['volume_um3'] for r in report['cell_volumes']],
                        distance_range_um=[min(p['distance_um'] for p in report['points']), max(p['distance_um'] for p in report['points'])],

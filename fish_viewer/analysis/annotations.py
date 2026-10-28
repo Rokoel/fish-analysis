@@ -4,6 +4,10 @@ import hashlib
 import json
 import re
 from copy import deepcopy
+from uuid import uuid4
+
+from ..annotation_state import annotation_report, split_measurements, timestamp
+from ..workflow.signal_pairs import DEFAULT_MAX_DISTANCE_UM, update_scene_pairs
 
 import numpy as np
 import pyvista as pv
@@ -12,6 +16,7 @@ from PySide6 import QtGui
 from ..models import Measurement
 from ..views import mesh_for
 from ..workflow.distances import SurfaceLocator
+from ..workflow.geometry import containing_surface
 from ..workflow.volumes import surface_volume
 
 
@@ -34,73 +39,42 @@ class Change(QtGui.QUndoCommand):
 class AnnotationDocument:
     def __init__(self, dataset, report=None, changed=lambda: None):
         self.dataset, self.changed = dataset, changed
-        self.report_template = deepcopy(report or {})
+        self.report_template = deepcopy(report or annotation_report(dataset))
+        self.pairing_max_distance = self.report_template.get('signal_pairing', {}).get('maximum_distance_um', DEFAULT_MAX_DISTANCE_UM)
         self.undo = QtGui.QUndoStack()
         self.bindings = {}
         self.channels = {}
         self.scores = {}
         surfaces = dataset.scene.surfaces
-        # Split independent native A/B pairs into individually editable signals.
-        groups = []
-        for m in dataset.scene.measurements:
-            if (
-                len(m.edges) > 1
-                and all(len(set(e)) == 2 for e in m.edges)
-                and len({v for e in m.edges for v in e}) == 2 * len(m.edges)
-            ):
-                for n, (a, b) in enumerate(m.edges):
-                    copy = deepcopy(m)
-                    copy.name = f"{m.name} · pair {n + 1}"
-                    copy.points = m.points[[a, b]].copy()
-                    copy.labels = [m.labels[a], m.labels[b]]
-                    copy.times = [m.times[a], m.times[b]]
-                    copy.edges = [(0, 1)]
-                    groups.append(copy)
-            elif len(m.points) > 1 and not m.edges:
-                for n in range(len(m.points)):
-                    copy = deepcopy(m)
-                    copy.name = f"{m.name} · point {n + 1}"
-                    copy.points = m.points[[n]].copy()
-                    copy.labels = [m.labels[n]]
-                    copy.times = [m.times[n]]
-                    groups.append(copy)
-            else:
-                groups.append(m)
-        dataset.scene.measurements = groups
+        self.run_id = next((obj.run_id for objects in (dataset.scene.surfaces, dataset.scene.measurements)
+                            for obj in objects if origin(obj) == "Program" and obj.run_id), str(uuid4()))
+        split_measurements(dataset.scene)
+        for objects in (dataset.scene.surfaces, dataset.scene.measurements, dataset.scene.contours):
+            for obj in objects:
+                if origin(obj) == "Program":
+                    obj.run_id = obj.run_id or self.run_id
+                    obj.created_at = obj.created_at or timestamp()
+        surface_ids = {s.uid: i for i, s in enumerate(surfaces)}
         for i, m in enumerate(dataset.scene.measurements):
-            channel = re.search(r"channel (\d+)", m.name)
-            self.channels[i] = int(channel[1]) - 1 if channel else None
-            score = re.search(r"score ([\d.eE+-]+)", m.name)
-            self.scores[i] = float(score[1]) if score else None
-            cell = re.search(r"cell (\d+)", m.name)
-            if cell:
-                self.bindings[i] = next(
-                    (
-                        j
-                        for j, s in enumerate(surfaces)
-                        if origin(s) == origin(m)
-                        and re.search(rf"(?:Predicted )?cell {cell[1]}(?:\D|$)", s.name)
-                    ),
-                    None,
-                )
-            else:
-                self.bindings[i] = None
+            self.channels[i] = m.channel
+            self.scores[i] = m.score
+            self.bindings[i] = surface_ids.get(m.cell_uid)
             a = self.signal_index(m)
             if a is not None and self.bindings[i] is None:
-                candidates = [
-                    j
-                    for j, s in enumerate(surfaces)
-                    if origin(s) == origin(m) and s.time == m.times[a]
-                ]
+                candidates = [j for j, s in enumerate(surfaces)
+                              if origin(s) == origin(m) and s.time == m.times[a]]
                 self.bindings[i] = self.containing(m.points[a], candidates)
+                if self.bindings[i] is None:
+                    self.bindings[i] = self.containing(m.points[a], [j for j, s in enumerate(surfaces)
+                                                                   if s.time == m.times[a]])
         manual_points = self.report_template.get("manual_measurements", {}).get(
             "points", []
         )
         for i, m in enumerate(dataset.scene.measurements):
-            row = next((p for p in manual_points if p.get("signal_id") == m.name), None)
+            row = next((p for p in manual_points if p.get("signal_id") == m.uid), None)
             if row is not None and self.channels[i] is None:
                 self.channels[i] = row.get("channel")
-        # Exact associations from this app's export override name heuristics.
+        # Restore exact editor associations only for the verified companion.
         sidecar = dataset.metadata.path.with_suffix(".annotations.json")
         if (
             sidecar.is_file()
@@ -146,6 +120,8 @@ class AnnotationDocument:
 
     @staticmethod
     def signal_index(m):
+        if m.kind == 'signal_pair':
+            return None
         return next(
             (
                 i
@@ -156,46 +132,170 @@ class AnnotationDocument:
         )
 
     def containing(self, point, candidates=None):
-        query = pv.PolyData(np.asarray(point, float).reshape(1, 3))
-        for i in (
-            range(len(self.dataset.scene.surfaces))
-            if candidates is None
-            else candidates
-        ):
-            s = self.dataset.scene.surfaces[i]
-            if not np.all((point >= s.vertices.min(0)) & (point <= s.vertices.max(0))):
-                continue
-            mesh = mesh_for(s).clean()
-            if mesh.n_open_edges:
-                continue
-            if SurfaceLocator(s).closest(point)[1] <= 1e-7:
-                return i
-            if query.select_enclosed_points(mesh, tolerance=1e-7, check_surface=False)[
-                "SelectedPoints"
-            ][0]:
-                return i
-        return None
+        return containing_surface(self.dataset.scene.surfaces, point, candidates)
 
     def snapshot(self):
-        return deepcopy((self.dataset.scene, self.bindings, self.channels, self.scores))
+        return deepcopy((self.dataset.scene, self.bindings, self.channels, self.scores, self.pairing_max_distance))
 
     def restore(self, state):
-        self.dataset.scene, self.bindings, self.channels, self.scores = deepcopy(state)
+        self.dataset.scene, self.bindings, self.channels, self.scores, self.pairing_max_distance = deepcopy(state)
         self.recalculate()
         self.changed()
 
     def apply(self, text, function):
+        if getattr(self, '_batch_depth', 0):
+            function()
+            return
         before = self.snapshot()
         try:
             function()
             self.recalculate()
             after = self.snapshot()
         except BaseException:
-            self.dataset.scene, self.bindings, self.channels, self.scores = before
+            self.dataset.scene, self.bindings, self.channels, self.scores, self.pairing_max_distance = before
             raise
         self.undo.push(Change(self, before, after, text))
 
+    def batch(self, text, function):
+        def change():
+            self._batch_depth = getattr(self, '_batch_depth', 0) + 1
+            try:
+                function()
+            finally:
+                self._batch_depth -= 1
+        self.apply(text, change)
+
+    def delete_many(self, selections):
+        names = {'surface': 'surfaces', 'measurement': 'measurements', 'contour': 'contours'}
+        ids = [(kind, getattr(self.dataset.scene, names[kind])[index].uid) for kind, index in selections]
+        def change():
+            for kind, uid in sorted(ids, key=lambda item: item[0] != 'surface'):
+                objects = getattr(self.dataset.scene, names[kind])
+                index = next((i for i, obj in enumerate(objects) if obj.uid == uid), None)
+                if index is not None:
+                    self.delete(kind, index)
+        self.batch('Delete selected objects', change)
+
+    def translate(self, selections, delta):
+        delta = np.asarray(delta, float)
+        if delta.shape != (3,) or not np.isfinite(delta).all():
+            raise ValueError('Use finite XYZ offsets.')
+        if selections and all(kind == 'measurement' and self.dataset.scene.measurements[index].kind == 'signal_pair'
+                              for kind, index in selections):
+            raise ValueError('Signal-pair lines are calculated from their signals. Move the signals instead.')
+        def change():
+            cells = {i for kind, i in selections if kind == 'surface'}
+            for kind, index in selections:
+                if kind == 'surface':
+                    obj = self.dataset.scene.surfaces[index]
+                    obj.vertices += delta
+                    obj.edited = True
+                elif kind == 'contour':
+                    obj = self.dataset.scene.contours[index]
+                    shift = delta[obj.axis] / self.dataset.metadata.spacing[obj.axis]
+                    if not np.isclose(shift, round(shift)):
+                        raise ValueError('A section contour must stay on a scan layer.')
+                    obj.plane += int(round(shift))
+                    obj.points += delta[[a for a in range(3) if a != obj.axis]]
+                    obj.edited = True
+            for i, obj in enumerate(self.dataset.scene.measurements):
+                if obj.kind == 'signal_pair':
+                    continue
+                if ('measurement', i) in selections or self.bindings.get(i) in cells:
+                    obj.points += delta
+                    obj.edited = True
+                    self.scores[i] = None
+                    if self.bindings.get(i) not in cells:
+                        previous = self.bindings.get(i)
+                        a = self.signal_index(obj)
+                        self.bindings[i] = self.containing(obj.points[a], [j for j, s in enumerate(self.dataset.scene.surfaces)
+                                                                        if s.time == obj.times[a]]) if a is not None else None
+                        if previous is not None and self.bindings[i] is None and a is not None:
+                            obj.points, obj.labels, obj.times, obj.edges = obj.points[[a]], ['A'], [obj.times[a]], []
+        self.apply('Move selected objects', change)
+
+    def move_section_points(self, index, anchors, delta, radius=None, falloff='smooth'):
+        from .tools import deform_surface
+        delta = np.asarray(delta, float)
+        if delta.shape != (3,) or not np.isfinite(delta).all():
+            raise ValueError('Use finite XYZ offsets.')
+        def change():
+            self.dataset.scene.surfaces[index] = deform_surface(
+                self, self.dataset.scene.surfaces[index], anchors, delta, radius, falloff)
+        self.apply('Proportional contour edit' if radius else 'Move contour points', change)
+
+    def delete_section_points(self, index, anchors):
+        def change():
+            obj = self.dataset.scene.surfaces[index]
+            for axis in sorted({a[0] for a in anchors}):
+                for coordinate in sorted({a[1 + axis] for a in anchors if a[0] == axis}):
+                    self.split_surface_plane(obj, axis, coordinate)
+            ids = {self.insert_surface_vertex(obj, np.asarray(a[1:], float)) for a in anchors}
+            for vertex in sorted(ids, reverse=True):
+                self.delete_vertex('surface', index, vertex)
+        self.batch('Delete contour points', change)
+
+    def simplify(self, selections, reduction=.4, volume_tolerance=.05):
+        """Simplify eligible objects together, reporting each unmodified skip."""
+        from .tools import simplify_surface, simplify_polygon
+        if not 0 < reduction < 1 or not 0 <= volume_tolerance < 1:
+            raise ValueError('Use a reduction between 0 and 100% and a finite volume limit.')
+        result = {'simplified': [], 'skipped': []}
+        replacements = []
+        for kind, index in sorted(selections):
+            if kind not in ('surface', 'contour'):
+                continue
+            objects = self.dataset.scene.surfaces if kind == 'surface' else self.dataset.scene.contours
+            obj = objects[index]
+            before = len(obj.vertices) if kind == 'surface' else len(obj.points)
+            entry = {'kind': kind, 'index': index, 'uid': obj.uid, 'name': obj.name,
+                     'before_points': before}
+            try:
+                if kind == 'surface':
+                    simplified = simplify_surface(obj, reduction, volume_tolerance)
+                    after = len(simplified.vertices)
+                else:
+                    simplified = deepcopy(obj)
+                    simplified.points = simplify_polygon(obj.points, reduction)
+                    after = len(simplified.points)
+                if after >= before:
+                    raise ValueError('No points can be removed at the requested reduction.')
+            except ValueError as exc:
+                result['skipped'].append({**entry, 'reason': str(exc)})
+                continue
+            simplified.edited = True
+            replacements.append((kind, index, simplified))
+            result['simplified'].append({**entry, 'after_points': after})
+
+        def change():
+            for kind, index, obj in replacements:
+                objects = self.dataset.scene.surfaces if kind == 'surface' else self.dataset.scene.contours
+                objects[index] = obj
+        if replacements:
+            self.apply('Simplify selected contours', change)
+        return result
+
+    def add_layered_cell(self, layers, axis):
+        from .tools import mesh_from_layers
+        def change():
+            obj = mesh_from_layers(layers, axis, self.dataset.spacing,
+                                   f'Cell added {len(self.dataset.scene.surfaces) + 1}')
+            obj.time, obj.run_id, obj.created_at = self.dataset.time, self.run_id, timestamp()
+            obj.edited = True
+            self.dataset.scene.surfaces.append(obj)
+            index = len(self.dataset.scene.surfaces) - 1
+            for i, measurement in enumerate(self.dataset.scene.measurements):
+                a = self.signal_index(measurement)
+                if (self.bindings.get(i) is None and a is not None and measurement.times[a] == obj.time
+                        and self.containing(measurement.points[a], [index]) is not None):
+                    self.bindings[i] = index
+        self.apply('Add layered cell contour', change)
+
     def recalculate(self):
+        for i, m in enumerate(self.dataset.scene.measurements):
+            cell = self.bindings.get(i)
+            m.cell_uid = self.dataset.scene.surfaces[cell].uid if cell is not None else None
+            m.channel, m.score = self.channels.get(i), self.scores.get(i)
         self.volumes = [surface_volume(s) for s in self.dataset.scene.surfaces]
         self.distances = {}
         locators = {}
@@ -217,15 +317,9 @@ class AnnotationDocument:
             b = next(
                 (j for j, label in enumerate(m.labels) if label.upper() == "B"), None
             )
-            if (
-                b is not None
-                and origin(m) == "Manual"
-                and origin(self.dataset.scene.surfaces[cell]) == "Manual"
-            ):
-                self.distances[i] = float(np.linalg.norm(m.points[b] - m.points[a]))
+            surface = self.dataset.scene.surfaces[cell]
+            if origin(m) == "Manual" and not m.edited and not surface.edited:
                 continue
-            if origin(self.dataset.scene.surfaces[cell]) == "Program":
-                m.source = "program"
             if b is None:
                 b = len(m.points)
                 m.points = np.vstack([m.points, border])
@@ -239,29 +333,45 @@ class AnnotationDocument:
                 m.name = re.sub(
                     r"; distance [\d.eE+-]+ um", f"; distance {distance:.6g} um", m.name
                 )
+        previous = {m.uid: (self.bindings.get(i), self.channels.get(i), self.scores.get(i), self.distances.get(i))
+                    for i, m in enumerate(self.dataset.scene.measurements)}
+        self.pairs = update_scene_pairs(self.dataset.scene, self.dataset.metadata, self.pairing_max_distance, self.run_id)
+        self.bindings, self.channels, self.scores, self.distances = {}, {}, {}, {}
+        cells = {s.uid: i for i, s in enumerate(self.dataset.scene.surfaces)}
+        for i, m in enumerate(self.dataset.scene.measurements):
+            binding, channel, score, distance = previous.get(m.uid, (cells.get(m.cell_uid), m.channel, m.score, None))
+            self.bindings[i], self.channels[i], self.scores[i] = binding, channel, score
+            if distance is not None:
+                self.distances[i] = distance
+            if m.kind == 'signal_pair':
+                self.distances[i] = m.length
+
+    def set_pairing_distance(self, maximum):
+        if not np.isfinite(maximum) or maximum <= 0:
+            raise ValueError('The maximum signal-pair distance must be positive and finite.')
+        self.apply('Change signal-pair distance limit', lambda: setattr(self, 'pairing_max_distance', float(maximum)))
 
     def delete(self, kind, index):
+        if kind == 'measurement' and self.dataset.scene.measurements[index].kind == 'signal_pair':
+            raise ValueError('This distance is calculated automatically. Edit or delete its signals, or change the pairing limit.')
         def change():
             if kind == "surface":
-                detached = {i for i, c in self.bindings.items() if c == index}
-                self.dataset.scene.surfaces.pop(index)
-                self.bindings = {
-                    i: None
-                    if c == index
-                    else c - 1
-                    if c is not None and c > index
-                    else c
-                    for i, c in self.bindings.items()
-                }
-                # Keep signal centers; discard their obsolete border endpoints.
+                removed = {i for i, c in self.bindings.items() if c == index}
+                surface = self.dataset.scene.surfaces[index]
                 for i, m in enumerate(self.dataset.scene.measurements):
-                    if i in detached:
-                        a = self.signal_index(m)
-                        if a is not None:
-                            m.points = m.points[[a]]
-                            m.labels = ["A"]
-                            m.times = [m.times[a]]
-                            m.edges = []
+                    a = self.signal_index(m)
+                    if (self.bindings.get(i) is None and a is not None
+                            and m.times[a] == surface.time
+                            and self.containing(m.points[a], [index]) is not None):
+                        removed.add(i)
+                self.dataset.scene.surfaces.pop(index)
+                keep = [i for i in range(len(self.dataset.scene.measurements)) if i not in removed]
+                self.dataset.scene.measurements = [self.dataset.scene.measurements[i] for i in keep]
+                self.bindings = {new: c - 1 if c is not None and c > index else c
+                                 for new, old in enumerate(keep) for c in [self.bindings.get(old)]}
+                for attribute in ("channels", "scores"):
+                    mapping = getattr(self, attribute)
+                    setattr(self, attribute, {new: mapping.get(old) for new, old in enumerate(keep)})
             elif kind == "measurement":
                 self.dataset.scene.measurements.pop(index)
                 for attribute in ("bindings", "channels", "scores"):
@@ -290,12 +400,14 @@ class AnnotationDocument:
                     "contour": "contours",
                 }[kind],
             )[index]
-            obj.source = "program"
+            obj.edited = True
             if kind == "surface":
                 obj.vertices[vertex] = xyz
             elif kind == "contour":
                 obj.points[vertex] = xyz[[a for a in range(3) if a != obj.axis]]
             else:
+                if obj.kind == 'signal_pair':
+                    raise ValueError('Signal-pair lines are calculated from their signals. Edit the signals instead.')
                 if obj.labels[vertex].upper() == "B":
                     raise ValueError(
                         "B is calculated from A and the cell border. Edit A or the contour instead."
@@ -322,21 +434,6 @@ class AnnotationDocument:
                     obj.labels = ["A"]
                     obj.times = [obj.times[vertex]]
                     obj.edges = []
-                match = re.match(r"Signal (\d+);", obj.name)
-                if match:
-                    cell = self.bindings.get(index)
-                    label = f"Signal {match[1]}"
-                    if cell is not None:
-                        number = re.match(
-                            r"Predicted cell (\d+)",
-                            self.dataset.scene.surfaces[cell].name,
-                        )
-                        if number:
-                            label += f"; cell {number[1]}"
-                    channel = self.channels.get(index)
-                    if channel is not None:
-                        label += f"; channel {channel + 1}"
-                    obj.name = label + "; edited center"
 
         self.apply("Move point", change)
 
@@ -429,7 +526,7 @@ class AnnotationDocument:
                 self.split_surface_plane(obj, axis, old_xyz[axis])
             vertex = self.insert_surface_vertex(obj, old_xyz)
             obj.vertices[vertex] = new_xyz
-            obj.source = "program"
+            obj.edited = True
 
         self.apply("Move slice contour point", change)
 
@@ -438,7 +535,7 @@ class AnnotationDocument:
             obj = getattr(
                 self.dataset.scene, "surfaces" if kind == "surface" else "contours"
             )[index]
-            obj.source = "program"
+            obj.edited = True
             if kind == "surface":
                 self.insert_surface_vertex(obj, xyz)
             else:
@@ -462,7 +559,7 @@ class AnnotationDocument:
             obj = getattr(
                 self.dataset.scene, "surfaces" if kind == "surface" else "contours"
             )[index]
-            obj.source = "program"
+            obj.edited = True
             if kind == "contour":
                 if len(obj.points) <= 3:
                     raise ValueError("A contour needs at least three points.")
@@ -513,6 +610,9 @@ class AnnotationDocument:
                 ["A"],
                 [self.dataset.time],
                 source="program",
+                run_id=self.run_id,
+                created_at=timestamp(),
+                channel=channel,
                 color=self.dataset.metadata.channels[channel].color,
             )
             self.dataset.scene.measurements.append(m)
@@ -550,9 +650,12 @@ class AnnotationDocument:
             points=[],
             cell_volumes=[],
             manual_measurements={"cells": [], "points": []},
+            signal_pairs=deepcopy(self.pairs),
+            signal_pairing=dict(method='closest_first_one_to_one_per_channel_pair',
+                                maximum_distance_um=self.pairing_max_distance, unit='um'),
         )
         for i, s in enumerate(self.dataset.scene.surfaces):
-            row = {"cell_id": s.name, "volume_um3": self.volumes[i]}
+            row = {"cell_id": s.uid, "cell_name": s.name, "volume_um3": self.volumes[i]}
             (
                 result["manual_measurements"]["cells"]
                 if origin(s) == "Manual"
@@ -565,15 +668,19 @@ class AnnotationDocument:
             cell = self.bindings.get(i)
             channel = self.channels.get(i)
             row = {
-                "signal_id": m.name,
-                "cell_id": self.dataset.scene.surfaces[cell].name
+                "signal_id": m.uid,
+                "signal_name": m.name,
+                "annotation_id": m.uid,
+                "cell_id": self.dataset.scene.surfaces[cell].uid
                 if cell is not None
                 else None,
+                "cell_name": self.dataset.scene.surfaces[cell].name if cell is not None else None,
                 "channel": channel,
                 "channel_name": self.dataset.metadata.channels[channel].name
                 if channel is not None
                 else None,
                 "xyz": m.points[a].tolist(),
+                "time": m.times[a],
                 "score": self.scores.get(i),
                 "distance_um": self.distances.get(i),
             }

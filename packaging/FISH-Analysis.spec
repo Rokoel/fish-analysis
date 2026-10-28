@@ -11,11 +11,10 @@ datas += [(os.environ['FISH_RUNTIME_PROFILE'], '.')]
 datas += collect_data_files('fish_viewer')
 # Lazy imports in both neural libraries need distribution metadata at runtime.
 for package in ('stardist', 'csbdeep', 'tensorflow', 'keras', 'numpy', 'scipy',
-                'torch', 'torchvision', 'spotiflow', 'pyvista', 'pyvistaqt', 'imagecodecs'):
+                'torch', 'torchvision', 'pyvista', 'pyvistaqt', 'imagecodecs'):
     datas += copy_metadata(package, recursive=True)
 hidden = collect_submodules('fish_viewer')
 hidden += collect_submodules('stardist') + collect_submodules('csbdeep')
-hidden += collect_submodules('spotiflow')
 hidden += ['matplotlib.backends.backend_svg', 'matplotlib.backends.backend_pdf',
            'matplotlib.backends.backend_agg', 'matplotlib.backends.backend_qtagg']
 binaries = []

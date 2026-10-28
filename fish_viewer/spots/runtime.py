@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 
-DIRECT_ENGINES = ('signal-center-unet3d', 'signal-spotiflow3d')
+DIRECT_ENGINES = ('signal-center-unet3d',)
 
 
 def interpreter():

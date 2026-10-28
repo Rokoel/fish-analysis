@@ -66,12 +66,32 @@ def document(ims_file):
     return AnnotationDocument(dataset)
 
 
+def test_imported_image_and_scene_stay_unchanged_through_edits_and_export(qapp, ims_file, tmp_path):
+    image = Path(export_document(document(ims_file), tmp_path / 'imported.ims'))
+    originals = {image.with_suffix(suffix): image.with_suffix(suffix).read_bytes()
+                 for suffix in ('.ims', '.xlsx')}
+    doc = AnnotationDocument(load_dataset(entry_for_path(image)))
+    polygon = np.array([[11, 20], [17, 20], [17, 26], [11, 26]], float)
+    doc.add_layered_cell({30.: polygon, 34.: polygon}, 2)
+    doc.delete('surface', 1)
+    doc.undo.undo()
+    doc.move('surface', 0, 0, [11, 21, 29])
+    export_document(doc, tmp_path / 'edited-copy.ims')
+    with pytest.raises(ValueError, match='original scan is read-only'):
+        export_document(doc, image)
+    with pytest.raises(FileExistsError, match='never overwritten'):
+        export_document(doc, tmp_path / 'edited-copy.ims')
+    for path, contents in originals.items():
+        assert path.read_bytes() == contents
+
+
 def test_move_signal_contour_delete_and_undo_recalculate(qapp, ims_file):
     doc = document(ims_file)
     assert doc.volumes == [pytest.approx(96)] and doc.distances[0] == pytest.approx(1)
     doc.move("measurement", 0, 0, [14, 23, 31.5])
     assert doc.distances[0] == pytest.approx(1.5)
-    assert origin(doc.dataset.scene.measurements[0]) == "Program"
+    assert origin(doc.dataset.scene.measurements[0]) == "Manual"
+    assert doc.dataset.scene.measurements[0].edited
     doc.move("surface", 0, 0, [11, 21, 29])
     assert doc.volumes[0] > 96
     assert doc.distances[0] > 1.5
@@ -82,7 +102,7 @@ def test_move_signal_contour_delete_and_undo_recalculate(qapp, ims_file):
     assert origin(doc.dataset.scene.measurements[0]) == "Manual"
     doc.delete("surface", 0)
     assert not doc.dataset.scene.surfaces
-    assert doc.dataset.scene.measurements[0].labels == ["A"]
+    assert not doc.dataset.scene.measurements
     assert doc.distances == {}
     doc.undo.undo()
     assert doc.dataset.scene.surfaces and doc.distances[0] == pytest.approx(1)
@@ -142,11 +162,14 @@ def test_export_latest_edited_geometry_and_provenance(
     np.testing.assert_allclose(
         reopened.scene.surfaces[0].vertices, doc.dataset.scene.surfaces[0].vertices
     )
-    assert reopened.scene.surfaces[0].source == "program"
-    assert reopened.scene.measurements[0].source == "program"
+    assert reopened.scene.surfaces[0].source == "manual"
+    assert reopened.scene.surfaces[0].name == "manual cell"
+    assert reopened.scene.measurements[0].source == "manual"
+    assert reopened.scene.measurements[0].run_id == doc.run_id
+    assert reopened.scene.measurements[0].created_at in reopened.scene.measurements[0].name
     assert ims_file.read_bytes() == source
     with h5py.File(path) as out, h5py.File(ims_file) as original:
-        assert not any(k.startswith("Scene") for k in out)
+        assert 'Scene/Content/Surfaces0' in out and 'Scene/Data' in out
         np.testing.assert_array_equal(
             out["DataSet/ResolutionLevel 0/TimePoint 0/Channel 0/Data"],
             original["DataSet/ResolutionLevel 0/TimePoint 0/Channel 0/Data"],
@@ -155,9 +178,10 @@ def test_export_latest_edited_geometry_and_provenance(
     assert workbook.sheetnames == ["Measurements"]
     rows = list(workbook.active.values)
     assert (
-        len(rows) == 2
+        len(rows) == 3
         and rows[1][2] == pytest.approx(doc.volumes[0])
-        and rows[1][-1] == pytest.approx(doc.distances[0])
+        and rows[2][2] == pytest.approx(doc.volumes[0])
+        and rows[2][-1] == pytest.approx(doc.distances[0])
     )
     workbook.close()
 
@@ -210,7 +234,7 @@ def test_editor_ui_manual_import_selection_edit_undo_and_hide(qapp, ims_file, tm
     try:
         window.set_dataset(doc.dataset, None)
         assert window.pipeline.currentData() == "consensus"
-        assert window.consensus_cells.isChecked()
+        assert window.pipeline.count() == 2
         editor = window.editor
         assert editor.tree.topLevelItem(0).childCount() == 2
         item = editor.tree.topLevelItem(0).child(0)
@@ -241,6 +265,44 @@ def test_slice_border_point_move_is_closed_and_undoable(qapp, ims_file):
     doc.undo.undo()
     assert doc.volumes[0] == pytest.approx(96)
     assert len(doc.dataset.scene.surfaces[0].vertices) == 8
+
+
+@pytest.mark.gui
+def test_contour_edit_updates_volumes_distances_and_tables_with_undo(qapp, ims_file, tmp_path):
+    from PySide6 import QtCore
+    from fish_viewer.analysis.app import AnalysisWindow
+
+    doc = document(ims_file)
+    other = cell()
+    other.vertices += [20, 0, 0]
+    doc.dataset.scene.surfaces.append(other)
+    doc.dataset.scene.measurements.append(Measurement(
+        'Unedited measurement', np.array([[34, 23, 31], [34, 23, 30.2]], float),
+        ['A', 'B'], [0, 0], [(0, 1)]))
+    window = AnalysisWindow(off_screen=True, settings=QtCore.QSettings(
+        str(tmp_path / 'measurements.ini'), QtCore.QSettings.Format.IniFormat))
+    try:
+        window.set_dataset(doc.dataset)
+        live = window.editor.document
+        before = live.dataset.scene.measurements[1].points.copy()
+        live.move_section(0, [14, 23, 30], [14, 23, 29], axis=2)
+        # The displaced bottom face adds a pyramid of volume 6*4*1/3.
+        assert live.volumes == pytest.approx([104, 96])
+        assert live.distances == pytest.approx({0: np.sqrt(3.2), 1: .8})
+        assert float(window.counts.item(0, 4).text()) == pytest.approx(104)
+        assert float(window.distances.item(0, 3).text()) == pytest.approx(np.sqrt(3.2), abs=5e-5)
+        assert live.report()['manual_measurements']['cells'][0]['volume_um3'] == pytest.approx(104)
+        np.testing.assert_array_equal(live.dataset.scene.measurements[1].points, before)
+        live.undo.undo()
+        assert live.volumes == pytest.approx([96, 96])
+        assert live.distances == pytest.approx({0: 1, 1: .8})
+        assert float(window.counts.item(0, 4).text()) == pytest.approx(96)
+        assert float(window.distances.item(0, 3).text()) == pytest.approx(1)
+        live.undo.redo()
+        assert live.volumes[0] == pytest.approx(104)
+        assert live.distances[0] == pytest.approx(np.sqrt(3.2))
+    finally:
+        window.close()
 
 
 @pytest.mark.parametrize("axis,coordinate", [(0, 14), (1, 23), (2, 32)])
@@ -283,12 +345,11 @@ def test_repeated_slice_edits_keep_neighbor_points_fixed(
 
 @pytest.mark.gui
 @pytest.mark.parametrize("axis,index", [(0, 0), (1, 1), (2, 1)])
-@pytest.mark.parametrize("tool", [0, 1, 2])
 @pytest.mark.parametrize(
     "zoom,click_offset", [(0.5, 0), (2.0, 0), (0.5, 9), (2.0, 9), (0.1, 0)]
 )
 def test_drag_slice_contour_with_mouse(
-    qapp, ims_file, tmp_path, axis, index, tool, zoom, click_offset
+    qapp, ims_file, tmp_path, axis, index, zoom, click_offset
 ):
     from PySide6 import QtCore, QtGui, QtTest
 
@@ -307,7 +368,7 @@ def test_drag_slice_contour_with_mouse(
         editor, view = window.editor, window.slice_view
         editor.tree.setCurrentItem(editor.tree.topLevelItem(0).child(0))
         assert editor.edit.isChecked()
-        editor.tool.setCurrentIndex(tool)
+        editor.set_tool_mode("precise")
         window.change_axis(axis)
         window.change_slice(index)
         view.fit()
@@ -376,7 +437,8 @@ def test_drag_slice_contour_with_mouse(
         assert editor.document.undo.count() == 1
         assert editor.document.volumes[0] != pytest.approx(96)
         assert len(window.dataset.scene.measurements) == 1
-        assert editor.document.dataset.scene.surfaces[0].source == "program"
+        assert editor.document.dataset.scene.surfaces[0].source == "manual"
+        assert editor.document.dataset.scene.surfaces[0].edited
         view.setFocus()
         QtTest.QTest.keyClick(
             view.viewport(),
@@ -424,7 +486,7 @@ def test_edits_and_undo_survive_switching_scans(qapp, ims_file, tmp_path):
         other = deepcopy(doc.dataset)
         other.metadata.path = tmp_path / "other.ims"
         window.set_dataset(other, None)
-        assert window.documents[str(ims_file)].dataset.volumes == []
+        assert window.documents[window.document_key(doc.dataset)].dataset.volumes == []
         window.set_dataset(load_dataset(entry_for_path(ims_file)), None)
         assert not window.dataset.scene.surfaces
         window.editor.document.undo.undo()
@@ -469,8 +531,11 @@ def test_pipeline_export_preserves_embedded_manual_and_new_detections(
             ),
         )
     target = tmp_path / "combined.ims"
-    export_result(Path(measured["directory"]) / "report.json", target)
+    exported = export_result(Path(measured["directory"]) / "report.json", target)
     reopened = load_dataset(entry_for_path(target))
+    assert all(s.source == "manual" for s in reopened.scene.surfaces)
+    from fish_viewer.annotation_state import activate_run
+    activate_run(reopened.scene, exported["annotation_run_id"])
     assert sum(s.source == "manual" for s in reopened.scene.surfaces) == 1
     assert sum(s.source != "manual" for s in reopened.scene.surfaces) == 2
     assert sum(m.source == "manual" for m in reopened.scene.measurements) == 1
@@ -491,9 +556,10 @@ def test_deleting_cell_does_not_change_unassociated_manual_ab(qapp, ims_file):
     doc = AnnotationDocument(doc.dataset)
     assert doc.bindings[1] is None and doc.distances[1] == pytest.approx(1)
     doc.delete("surface", 0)
-    assert doc.dataset.scene.measurements[0].labels == ["A"]
-    assert doc.dataset.scene.measurements[1].labels == ["A", "B"]
-    assert doc.distances[1] == pytest.approx(1)
+    assert len(doc.dataset.scene.measurements) == 1
+    assert doc.dataset.scene.measurements[0].uid == orphan.uid
+    assert doc.dataset.scene.measurements[0].labels == ["A", "B"]
+    assert doc.distances[0] == pytest.approx(1)
 
 
 def test_unsupported_annotations_cannot_be_silently_discarded(qapp, ims_file, tmp_path):
@@ -512,6 +578,8 @@ def test_reopening_preserves_edited_signal_association_and_cleared_score(
     doc = document(ims_file)
     doc.dataset.scene.surfaces[0].name = "Predicted cell 1 - 1 signals"
     second = deepcopy(doc.dataset.scene.surfaces[0])
+    from uuid import uuid4
+    second.uid = str(uuid4())
     second.name = "Predicted cell 2 - 0 signals"
     second.vertices += [10, 0, 0]
     doc.dataset.scene.surfaces.append(second)
@@ -522,8 +590,8 @@ def test_reopening_preserves_edited_signal_association_and_cleared_score(
     doc.scores[0] = 0.99
     doc.move("measurement", 0, 0, [24, 23, 31])
     assert doc.bindings[0] == 1 and doc.scores[0] is None
-    assert "cell 2" in doc.dataset.scene.measurements[0].name
-    assert "score" not in doc.dataset.scene.measurements[0].name
+    assert doc.dataset.scene.measurements[0].cell_uid == second.uid
+    assert doc.dataset.scene.measurements[0].score is None
     exported = export_document(doc, tmp_path / "moved.ims")
     reopened = AnnotationDocument(load_dataset(entry_for_path(exported)))
     assert reopened.bindings[0] == 1 and reopened.scores[0] is None
@@ -535,16 +603,16 @@ def test_reopening_preserves_edited_signal_association_and_cleared_score(
     assert again.dataset.scene.measurements[0].labels == ["A"]
 
 
-def test_annotation_sidecar_is_ignored_if_scene_changed(qapp, ims_file, tmp_path):
+def test_embedded_annotation_metadata_is_ignored_if_scene_changed(qapp, ims_file, tmp_path):
     import json
 
     doc = document(ims_file)
     exported = Path(export_document(doc, tmp_path / "saved.ims"))
-    sidecar = exported.with_suffix(".annotations.json")
-    data = json.loads(sidecar.read_text())
-    data["editor_state"]["bindings"] = {"0": None}
-    sidecar.write_text(json.dumps(data))
-    scene = exported.with_suffix(".imx")
-    scene.write_bytes(scene.read_bytes() + b"\n")
+    with h5py.File(exported, 'r+') as image:
+        data = json.loads(image['FISHAnalysis/Annotations'][()].tobytes())
+        data['editor_state']['objects']['measurements'][0]['cell_uid'] = None
+        del image['FISHAnalysis/Annotations']
+        image.create_dataset('FISHAnalysis/Annotations', data=np.frombuffer(json.dumps(data).encode(), np.uint8))
+        image['Scene/Data'][0] = np.concatenate((image['Scene/Data'][0], np.frombuffer(b'\n', np.uint8)))
     reopened = AnnotationDocument(load_dataset(entry_for_path(exported)))
     assert reopened.bindings[0] == 0

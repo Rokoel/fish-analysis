@@ -85,7 +85,7 @@ def predict_proposals(prepared,model,config,emit=lambda e:None,cancel=None):
     return proposals
 
 
-def contour_proposals(prepared,proposals,model,config,emit=lambda e:None,cancel=None,evidence_threshold=.5,candidates=None):
+def contour_proposals(prepared,proposals,model,config,emit=lambda e:None,cancel=None,evidence_threshold=.5):
     labels=np.zeros(prepared.image.shape,np.uint32)
     spacing=np.array(prepared.spacing);origin=np.array(prepared.origin)
     visible=ndi.gaussian_filter(prepared.image,sigma=.3/spacing)
@@ -112,8 +112,6 @@ def contour_proposals(prepared,proposals,model,config,emit=lambda e:None,cancel=
         at=(grid-center[:,None,None,None])*spacing[:,None,None,None]/step+(config.patch_size-1)/2
         scores=ndi.map_coordinates(probability,at,order=1,mode='constant',cval=0,prefilter=False)
         mask=seeded_component(scores>=config.threshold,seed-lower)
-        if candidates is not None and mask.any():
-            candidates[proposal['proposal_id']] = (region, mask.copy(), seed-lower)
         evidence=surface_evidence(mask,visible[region],spacing) if mask.any() else dict(surface_support=0.,surface_contrast=0.)
         reason=None;volume=float(mask.sum()*np.prod(spacing))
         if not mask.any():reason='No connected cell at predicted center'
@@ -204,16 +202,10 @@ def detect(model_directory,output,device='auto',emit=lambda e:None,cancel=None,i
     emit(dict(kind='finished',report=report));return report
 
 
-def signal_supported_boxes(proposals, points, margin):
-    """Keep original boxes/seeds containing a signal within contour crop padding."""
-    xyz = np.asarray([p['xyz'] for p in points], dtype=float).reshape(-1, 3)
-    return [p for p in proposals if np.any(np.all(
-        (xyz >= np.asarray(p['box_low_xyz'])-margin) &
-        (xyz <= np.asarray(p['box_high_xyz'])+margin), axis=1))]
 
 
 def apply(model_directory,boundary_directory,output,device='auto',emit=lambda e:None,cancel=None,
-          image=None,audit=None,split=None,threshold=None,recovery=None,signal_candidates=None,cell_channel=None):
+          image=None,audit=None,split=None,threshold=None,cell_channel=None):
     directory=new_run_directory(output,'center-contours')
     report=dict(version=1,engine='cell-center-box3d',mode='apply',status='running',directory=str(directory),
                 model_directory=str(Path(model_directory).resolve()),boundary_model=str(Path(boundary_directory).resolve()),files=[],failures=[])
@@ -234,9 +226,6 @@ def apply(model_directory,boundary_directory,output,device='auto',emit=lambda e:
         boundary_manifest=read_boundary_model(boundary_directory);boundary_config=RefinementConfig(**boundary_manifest['config'])
         from dataclasses import replace
         boundary_config=replace(boundary_config,margin_um=boundary_manifest.get('inference_crop_margin_um',config.box_margin_um)).validate()
-        from .recovery import RecoveryConfig,recover,candidate_labels
-        recovery_config=RecoveryConfig(**recovery).validate() if recovery is not None else None
-        report['recovery_config']=asdict(recovery_config) if recovery_config else None
         report['config']=asdict(config);report['boundary_config']=asdict(boundary_config)
         report['crop_acceptance']=dict(surface_smoothing_um=.3,
             minimum_surface_support=manifest.get('crop_surface_evidence_threshold',.65),
@@ -253,27 +242,8 @@ def apply(model_directory,boundary_directory,output,device='auto',emit=lambda e:
             checkpoint(cancel);notify(dict(kind='progress',phase='Preparing membrane image',current=number,total=len(cases),file=case['image']))
             prepared=prepare_case(case,collection,boundary_config,notify,cancel,manifest.get('channel_selection'),cell_channel)
             proposals=predict_proposals(prepared,detector,config,notify,cancel)
-            signal_gate = None
-            if signal_candidates:
-                scout=json.loads(Path(signal_candidates).read_text())
-                if scout['status'] != 'complete' or scout['fingerprint'] != prepared.fingerprint:
-                    raise ValueError('Signal candidates belong to a different scan or incomplete run.')
-                if scout['membrane_channel'] != prepared.channel:
-                    raise ValueError('Signal scouting and cell inference selected different membrane channels.')
-                before=len(proposals)
-                proposals=signal_supported_boxes(proposals,scout['points'],boundary_config.margin_um)
-                signal_gate=dict(report=str(Path(signal_candidates).resolve()),
-                                 candidates=len(scout['points']), boxes_before=before, boxes_kept=len(proposals),
-                                 margin_um=boundary_config.margin_um)
-                notify(dict(kind='progress',phase='Keeping signal-supported cell boxes',current=len(proposals),total=before))
-            candidates={}
             labels,diagnostics=contour_proposals(prepared,proposals,boundary,boundary_config,notify,cancel,
-                manifest.get('crop_surface_evidence_threshold',.65),candidates if recovery_config else None)
-            recovery_summary=None
-            if recovery_config:
-                labels,diagnostics,recovery_summary=recover(prepared,proposals,boundary,boundary_config,
-                    labels,diagnostics,candidates,recovery_config,notify,cancel,
-                    local=recovery_config.local_evidence,retries=recovery_config.retry)
+                manifest.get('crop_surface_evidence_threshold',.65))
             cells=[]
             for cell,box in enumerate(ndi.find_objects(labels),1):
                 if box is None:continue
@@ -291,21 +261,10 @@ def apply(model_directory,boundary_directory,output,device='auto',emit=lambda e:
                 checkpoint_sha256=report['checkpoint_sha256']),refinement=dict(model=str(Path(boundary_directory).resolve()),
                 config=asdict(boundary_config),cells=accepted,checkpoint_sha256=report['boundary_sha256'],
                 policy='Independent padded-box target contours; failed crops rejected; no geometric fallback or roundness filter.'))
-            if recovery_config:
-                metadata['cell_recovery']=dict(config=asdict(recovery_config),summary=recovery_summary)
-            if signal_gate:
-                metadata['signal_first']=signal_gate
             folder=directory/f'{number+1:04d}-{Path(case["image"]).stem}';folder.mkdir()
             path=folder/'contours.npz';np.savez_compressed(path,labels=labels,metadata=np.array(json.dumps(metadata,allow_nan=False)))
             row=dict(image=case['image'],predictions=str(path),split=split or 'apply',channel=prepared.channel,
                      proposals=diagnostics,cells=len(cells),refinement=accepted)
-            if recovery_config and recovery_config.signal_guided:
-                provisional=candidate_labels(labels,candidates,diagnostics,prepared.spacing,recovery_config.signal_search_um)
-                candidate_metadata=dict(metadata,prediction_role='candidate_only')
-                candidate_path=folder/'recovery-candidates.npz'
-                np.savez_compressed(candidate_path,labels=provisional,metadata=np.array(json.dumps(candidate_metadata,allow_nan=False)))
-                row['recovery_candidates']=str(candidate_path)
-            if recovery_config:row['recovery_summary']=recovery_summary
             if collection:
                 refs,names=read_references(Path(case['directory'])/'references.npz')
                 row['metrics']=evaluate(labels,refs,names,prepared.spacing,cancel)
@@ -317,78 +276,3 @@ def apply(model_directory,boundary_directory,output,device='auto',emit=lambda e:
     except Exception:report.update(status='failed',error=traceback.format_exc())
     report['elapsed_s']=time.monotonic()-started;_json(directory/'report.json',report)
     emit(dict(kind='finished',report=report));return report
-
-
-def recover_guided(cells_report, signal_report, output, device='auto', emit=lambda e:None, cancel=None):
-    """Recheck provisional cells with confident signals, then publish only accepted NN masks."""
-    from .recovery import RecoveryConfig, recover
-    directory=new_run_directory(output,'guided-contours')
-    report=dict(version=1,engine='cell-center-box3d',mode='recover',status='running',directory=str(directory),files=[],failures=[])
-    _json(directory/'report.json',report)
-    try:
-        parent=json.loads(Path(cells_report).read_text()); signals=json.loads(Path(signal_report).read_text())
-        if parent['status']!='complete' or signals['status']!='complete' or len(parent['files'])!=1:
-            raise ValueError('Completed single-scan cell and signal-candidate reports required.')
-        source=parent['files'][0]
-        if Path(signals['cell_predictions']).resolve()!=Path(source['recovery_candidates']).resolve():
-            raise ValueError('Signal guidance belongs to different recovery candidates.')
-        with np.load(source['predictions'],allow_pickle=False) as data:
-            labels=data['labels'].copy(); metadata=json.loads(str(data['metadata']))
-        with np.load(source['recovery_candidates'],allow_pickle=False) as data:
-            provisional=data['labels']; candidate_metadata=json.loads(str(data['metadata']))
-        if candidate_metadata.get('prediction_role')!='candidate_only' or signals['fingerprint']!=metadata['fingerprint']:
-            raise ValueError('Invalid signal-guidance provenance.')
-        config=RecoveryConfig(**parent['recovery_config']).validate()
-        boundary_manifest=read_boundary_model(parent['boundary_model'])
-        actual_sha=hashlib.sha256((Path(parent['boundary_model'])/boundary_manifest['checkpoint']).read_bytes()).hexdigest()
-        if actual_sha!=parent['boundary_sha256']:
-            raise ValueError('Boundary model changed after initial contouring.')
-        boundary_config=RefinementConfig(**parent['boundary_config'])
-        tf,_,_,info=runtime(device,42);report['runtime']=info
-        model=boundary_network(tf,boundary_config)
-        model.load_weights(Path(parent['boundary_model'])/boundary_manifest['checkpoint'])
-        dataset=load_dataset(LibraryEntry(Path(source['image'])))
-        from ..signals.engine import image_fingerprint
-        if image_fingerprint(dataset)!=metadata['fingerprint']:raise ValueError('Guidance source image changed.')
-        prepared=prepare_membrane(dataset,metadata['channel'],boundary_config,metadata['fingerprint'])
-        if prepared.image.shape!=labels.shape or not np.allclose(prepared.spacing,metadata['spacing_zyx']) or not np.allclose(prepared.origin,metadata['origin_xyz']):
-            raise ValueError('Recovery cell and image grids differ.')
-        if provisional.shape!=labels.shape or not np.allclose(candidate_metadata['spacing_zyx'],metadata['spacing_zyx']) or not np.allclose(candidate_metadata['origin_xyz'],metadata['origin_xyz']):
-            raise ValueError('Signal search and contour grids differ.')
-        from ..signals.data import at_labels
-        for point in signals['points']:
-            if not np.isfinite(point['score']) or at_labels(provisional,[point['xyz']],metadata['origin_xyz'],metadata['spacing_zyx'])[0]!=point['cell_id']:
-                raise ValueError('Signal guidance lies outside its provisional search mask.')
-        candidates={}
-        confident={p['cell_id'] for p in signals['points'] if p['score']>=config.signal_score}
-        from .recovery import crop_prediction
-        for proposal in source['proposals']:
-            checkpoint(cancel)
-            if not proposal['accepted'] and proposal['proposal_id'] in confident:
-                # Search masks are expanded for signals only; every stability
-                # comparison uses a fresh NN contour, never an expanded mask.
-                candidate=crop_prediction(prepared,proposal,model,boundary_config)
-                if candidate is not None:candidates[proposal['proposal_id']]=candidate
-        diagnostics=source['proposals']
-        labels,diagnostics,summary=recover(prepared,diagnostics,model,boundary_config,labels,diagnostics,
-            candidates,config,emit,cancel,signals=signals['points'],local=False,retries=True)
-        cells=[]
-        for cell,box in enumerate(ndi.find_objects(labels),1):
-            if box is None:continue
-            mask=labels[box]==cell; props=mask_properties(mask,np.asarray(prepared.spacing))
-            center=(np.argwhere(mask).mean(0)+[s.start for s in box])*prepared.spacing
-            diagnostic=next(d for d in diagnostics if d['cell_id']==cell)
-            props.update(label=cell,center_xyz=(center[::-1]+prepared.origin).tolist(),detection_score=diagnostic['score'])
-            cells.append(props)
-        metadata['cells']=cells;metadata['detector']['proposals']=diagnostics
-        metadata['refinement']['cells']=[dict(d,fallback_reason=None) for d in diagnostics if d['accepted']]
-        metadata['cell_recovery']['signal_guided_summary']=summary
-        metadata['cell_recovery']['signal_guidance_report']=str(Path(signal_report).resolve())
-        metadata.pop('prediction_role',None)
-        path=directory/'contours.npz'
-        np.savez_compressed(path,labels=labels,metadata=np.array(json.dumps(metadata,allow_nan=False)))
-        report.update(status='complete',files=[dict(image=source['image'],predictions=str(path),cells=len(cells),
-            proposals=diagnostics,refinement=metadata['refinement']['cells'])],summary=dict(cells=len(cells),**summary))
-    except Cancelled:report['status']='cancelled'
-    except Exception:report.update(status='failed',error=traceback.format_exc())
-    _json(directory/'report.json',report);emit(dict(kind='finished',report=report));return report

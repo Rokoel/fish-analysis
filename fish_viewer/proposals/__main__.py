@@ -12,10 +12,7 @@ from .config import ProposalConfig
 def main():
     restart_with_cuda('fish_viewer.proposals')
     p=argparse.ArgumentParser(description='Tiny 3D cell-center/box detector and crop contour pipeline.')
-    p.add_argument('--mode',choices=['train','detect','apply','recover'],required=True);p.add_argument('--audit',type=Path)
-    p.add_argument('--recovery-config',type=Path)
-    p.add_argument('--cells-report',type=Path);p.add_argument('--signal-report',type=Path)
-    p.add_argument('--signal-candidates',type=Path)
+    p.add_argument('--mode',choices=['train','detect','apply'],required=True);p.add_argument('--audit',type=Path)
     p.add_argument('--cell-channel',type=int)
     p.add_argument('--patches',type=Path);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--model',type=Path);p.add_argument('--boundary-model',type=Path)
@@ -36,18 +33,13 @@ def main():
             p.error('Detection requires --model and --image or --audit with --split.')
         from .inference import detect
         r=detect(args.model,args.output,args.device,emit,cancel,image=args.image,audit=args.audit,split=args.split,threshold=args.threshold,cell_channel=args.cell_channel)
-    elif args.mode=='recover':
-        if not args.cells_report or not args.signal_report:p.error('Recovery requires both reports.')
-        from .inference import recover_guided
-        r=recover_guided(args.cells_report,args.signal_report,args.output,args.device,emit,cancel)
     else:
         if not args.model or not args.boundary_model or not (args.image or (args.audit and args.split)):
             p.error('Application requires both models and --image or --audit with --split.')
         from .inference import apply
         r=apply(args.model,args.boundary_model,args.output,args.device,emit,cancel,
                 image=args.image,audit=args.audit,split=args.split,threshold=args.threshold,
-                recovery=json.loads(args.recovery_config.read_text()) if args.recovery_config else None,
-                signal_candidates=args.signal_candidates,cell_channel=args.cell_channel)
+                cell_channel=args.cell_channel)
     return 0 if r['status']=='complete' else 1
 
 

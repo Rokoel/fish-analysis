@@ -2,14 +2,13 @@ import argparse
 import os
 from pathlib import Path
 import sys
-from ..project_paths import annotation_audit
 
 
 def main():
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description='Paint training-only FISH crops. Zero/unpainted is unknown, never background.')
-    parser.add_argument('--audit', type=Path, default=annotation_audit())
-    parser.add_argument('--output', type=Path, default=root / 'training_annotations')
+    parser.add_argument('--audit', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--crop-xy', type=int, default=128, help='Native pixels in X and Y (default: 128)')
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--fish-root', type=Path, help='Relocate audited scans to this FISH directory, for example on another machine')

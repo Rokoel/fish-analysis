@@ -16,6 +16,7 @@ def main():
     parser.add_argument('--image', help='Source IMS for an unannotated copy')
     parser.add_argument('--output', required=True)
     parser.add_argument('--cancel-file')
+    parser.add_argument('--max-pair-distance', type=float, default=1., help='Maximum within-cell cross-channel signal distance in micrometres')
     args = parser.parse_args()
     if args.operation == 'unannotated' and not args.image:
         parser.error('unannotated requires --image')
@@ -31,7 +32,7 @@ def main():
             report = filter_result(args.report, args.output, emit, cancel)
         elif args.operation == 'measure':
             from .distances import measure_result
-            report = measure_result(args.report, args.output, emit, cancel)
+            report = measure_result(args.report, args.output, emit, cancel, maximum_pair_distance=args.max_pair_distance)
         elif args.operation == 'export':
             from .export import export_result
             report = export_result(args.report, args.output, emit, cancel, source_scene=args.scene)

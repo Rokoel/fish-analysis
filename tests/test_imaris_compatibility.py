@@ -116,7 +116,7 @@ def test_annotation_free_copy_preserves_source_and_all_image_bytes(reference, tm
     digest = hashlib.sha256(reference.read_bytes()).hexdigest()
     target = tmp_path / 'test unannotated.ims'
     result = export_unannotated(reference, target)
-    assert result['image_sha256'] == hashlib.sha256(target.read_bytes()).hexdigest() == digest
+    assert result['image_sha256'] == hashlib.sha256(target.read_bytes()).hexdigest()
     assert hashlib.sha256(reference.read_bytes()).hexdigest() == digest
     assert reference.with_suffix('.imx').read_bytes() == source_scene
     reopened = load_dataset(entry_for_path(target))
@@ -124,10 +124,10 @@ def test_annotation_free_copy_preserves_source_and_all_image_bytes(reference, tm
     assert not reopened.scene.warnings
     for a, b in zip(original.volumes, reopened.volumes):
         np.testing.assert_array_equal(a, b)
-    root = ET.parse(target.with_suffix('.imx')).getroot()
-    assert root.findall('.//Point') == root.findall('.//surface') == root.findall('.//bpManualSurface') == []
     with h5py.File(target) as image:
-        assert set(image) == {'DataSet', 'DataSetInfo', 'Thumbnail'}
+        root = ET.fromstring(image['Scene/Data'][0].tobytes())
+        assert root.findall('.//Point') == root.findall('.//surface') == root.findall('.//bpManualSurface') == []
+        assert {'DataSet', 'DataSetInfo', 'Thumbnail', 'Scene', 'FISHAnalysis'} <= set(image)
 
 
 def test_unannotated_export_does_not_overwrite_and_cancels_cleanly(ims_file, tmp_path):

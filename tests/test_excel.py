@@ -45,7 +45,7 @@ def test_two_lists_keep_manual_nn_values_channels_and_safe_text(tmp_path):
     workbook.close()
 
 
-def test_original_manual_scene_is_collected_without_using_nn_as_manual(ims_file):
+def test_imported_scene_is_preexisting_regardless_of_old_provenance(ims_file):
     from fish_viewer.workflow.manual import manual_measurements
     surface = box_surface()
     surface.vertices = surface.vertices * [4,2,1] + [10,20,30]
@@ -65,14 +65,17 @@ def test_original_manual_scene_is_collected_without_using_nn_as_manual(ims_file)
     <Point Name="B" Position="13 23 30" TimeIndex="1"/></bpMeasurementPoints>
     </bpImarisApplication>''')
     result = manual_measurements(dict(image=str(ims_file),membrane_channel=0))
-    assert result['cells'] == [dict(cell_id='Manual cell',volume_um3=pytest.approx(192))]
+    assert len(result['cells']) == 1
+    assert result['cells'][0]['cell_name'] == 'Manual cell'
+    assert result['cells'][0]['volume_um3'] == pytest.approx(192)
     assert len(result['points']) == 2
-    assert all(p['cell_id']=='Manual cell' and p['distance_um']==pytest.approx(1) for p in result['points'])
+    assert all(p['cell_id']==result['cells'][0]['cell_id'] and p['distance_um']==pytest.approx(1) for p in result['points'])
     assert all(p['channel'] is None for p in result['points'])
-    # Exported NN scenes have explicit provenance and must never become manual rows.
+    # A previous export is pre-existing input to the next run, even with old provenance.
     scene.write_text(scene.read_text().replace('<bpImarisApplication>',
         '<bpImarisApplication><!--FISH Viewer exported detections; synthetic test-->'))
-    assert manual_measurements(dict(image=str(ims_file))) == dict(cells=[],points=[])
+    reimported = manual_measurements(dict(image=str(ims_file)))
+    assert len(reimported['cells']) == 1 and len(reimported['points']) == 2
 
 
 def test_degenerate_imaris_pole_triangles_do_not_bias_volume():

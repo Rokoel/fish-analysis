@@ -14,8 +14,6 @@ WORKERS = frozenset(
         "fish_viewer.proposals",
         "fish_viewer.proposals.consensus",
         "fish_viewer.refinement",
-        "fish_viewer.refinement.membrane",
-        "fish_viewer.boundary",
         "fish_viewer.signals",
         "fish_viewer.spots",
         "fish_viewer.analysis.shape",

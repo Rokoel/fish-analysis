@@ -1,5 +1,4 @@
-# Optional separate runtime for experimental direct signal-center models.
-spotiflow==0.6.5
+# Separate runtime dependencies for the supported signal-center U-Net.
 numpy>=2,<2.4
 h5py>=3.11,<4
 scipy>=1.13,<2

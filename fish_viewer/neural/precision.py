@@ -4,26 +4,21 @@ import numpy as np
 from scipy import ndimage as ndi
 
 
-def precision_preset(config):
-    return replace(config,precision_mode=True,probability_threshold=.75,nms_threshold=.15,
-        min_sphericity=.72,max_elongation=1.5,exclude_border=True,calibrate_probability=False,
-        precision_max_diameter_um=10,curate_training_shapes=True,synthetic_background_fraction=.25,
-        overlap_policy='isolate',patch_z=max(48,config.patch_z),patch_xy=max(48,config.patch_xy),select_balanced_acceptance=False,
-        use_shape_filter=True)
 
 
-def balanced_preset(config):
-    """Allow moderate elongation while retaining visible membrane requirements."""
-    return replace(precision_preset(config),probability_threshold=.55,nms_threshold=.25,
-        min_sphericity=.65,max_elongation=1.8,membrane_support=.50,
-        membrane_contrast=.04,membrane_intensity=.10,select_balanced_acceptance=True)
 
 
 def evidence_preset(config):
-    """Keep visible-boundary checks without roundness or elongation limits."""
-    base=config if config.precision_mode else balanced_preset(config)
-    return replace(base,precision_mode=True,use_shape_filter=False,curate_training_shapes=False,
-        calibrate_probability=False,overlap_policy='isolate',patch_z=max(80,base.patch_z),patch_xy=max(80,base.patch_xy))
+    """Training defaults requiring visible boundaries without shape rejection."""
+    if not config.precision_mode:
+        config = replace(config, precision_mode=True, probability_threshold=.55,
+            nms_threshold=.25, min_sphericity=.65, max_elongation=1.8, exclude_border=True,
+            precision_max_diameter_um=10, synthetic_background_fraction=.25,
+            membrane_support=.50, membrane_contrast=.04, membrane_intensity=.10,
+            select_balanced_acceptance=True)
+    return replace(config, use_shape_filter=False, curate_training_shapes=False,
+        calibrate_probability=False, overlap_policy='isolate',
+        patch_z=max(80, config.patch_z), patch_xy=max(80, config.patch_xy))
 
 
 def shape_eligible(properties,config):
