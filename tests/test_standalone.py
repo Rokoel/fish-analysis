@@ -70,3 +70,22 @@ def test_runtime_checks_use_separate_workers(monkeypatch):
     assert standalone.main() == 0
     assert [call[0][-3:] for call in calls] == [['tensorflow', '--device', 'gpu'], ['torch', '--device', 'gpu']]
     assert all(call[1]['check'] for call in calls)
+
+
+def test_model_verification_command_uses_frozen_worker_protocol(monkeypatch, tmp_path):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / 'scripts/verify_release.py'
+    spec = importlib.util.spec_from_file_location('release_model_checks', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    command = module.signal_control_command(tmp_path / 'model folder', tmp_path / 'output folder')
+    monkeypatch.setattr(sys, 'argv', command)
+    monkeypatch.setattr(standalone, 'hide_owned_console', lambda: pytest.fail('Command bypassed worker dispatch'))
+    calls = []
+    monkeypatch.setattr(standalone.runpy, 'run_module', lambda name, **options: calls.append((name, sys.argv[:])))
+    assert standalone.main() == 0
+    assert calls == [('fish_viewer.signals', ['fish_viewer.signals', '--mode', 'controls',
+                     '--model', str(tmp_path / 'model folder'), '--output', str(tmp_path / 'output folder'),
+                     '--device', 'cpu'])]

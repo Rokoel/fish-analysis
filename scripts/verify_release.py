@@ -18,6 +18,11 @@ BUNDLES = ('cells-sensitive', 'proposals', 'refinement-bias-candidate',
            'signals-center-unet', 'cells-stardist2d')
 
 
+def signal_control_command(model, output):
+    return [sys.executable, '-m', 'fish_viewer.signals', '--mode', 'controls',
+            '--model', str(model), '--output', str(output), '--device', 'cpu']
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--require-latest-models', action='store_true')
@@ -72,8 +77,7 @@ def main():
     assert np.isfinite(outputs).all()
     shapes[folder.name] = list(outputs.shape)
     with tempfile.TemporaryDirectory(prefix='fish-center-check-') as output:
-        process = subprocess.run([sys.executable, '-B', '-m', 'fish_viewer.signals', '--mode', 'controls',
-            '--model', str(signals), '--output', output, '--device', 'cpu'], cwd=ROOT, text=True,
+        process = subprocess.run(signal_control_command(signals, output), cwd=ROOT, text=True,
             capture_output=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
         if process.returncode:
             raise RuntimeError(process.stderr[-6000:] + process.stdout[-6000:])

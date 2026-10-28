@@ -1,4 +1,4 @@
-# FISH Analysis v0.9.1
+# FISH Analysis v0.9.2
 
 This release focuses on more selective consensus detection, reliable imported
 annotations, contour editing, cross-channel measurements and standalone IMS/Excel
@@ -38,8 +38,8 @@ conditional on matches. Sparse annotations cannot establish the overall precisio
 of unmatched detections. This historically reused test fold is exploratory, not
 independent validation of the default threshold.
 
-[Full roundness report and raw results](https://github.com/Rokoel/fish-analysis/blob/v0.9.1/reports/consensus-roundness-20261028/README.md) ·
-[Fine-tuned StarDist report](https://github.com/Rokoel/fish-analysis/blob/v0.9.1/reports/stardist2d/README.md)
+[Full roundness report and raw results](https://github.com/Rokoel/fish-analysis/blob/v0.9.2/reports/consensus-roundness-20261028/README.md) ·
+[Fine-tuned StarDist report](https://github.com/Rokoel/fish-analysis/blob/v0.9.2/reports/stardist2d/README.md)
 
 ## Annotation and export fixes
 
@@ -86,15 +86,17 @@ Historical reports are consolidated into one local report, excluded from Git and
 release bundles. The latest consensus roundness report and fine-tuned StarDist
 report remain public, preserving their original cohorts and parameters.
 
-## Windows report portability
+## Windows and standalone portability
 
 Generated roundness reports and their CSV tables now use explicit UTF-8 encoding,
 including on Windows systems whose default encoding cannot represent scientific
-symbols. A regression test reproduces that Windows encoding before checking the fix.
+symbols. A regression test reproduces that Windows encoding before checking the fix. Packaged model verification also uses the standalone
+launcher’s supported worker protocol; Python-only startup flags are kept out of
+commands sent to the executable.
 
 ## Verification and downloads
 
-Local verification passed **348 tests**, with three skipped in the main environment,
+Local verification passed **349 tests**, with three skipped in the main environment,
 plus **nine signal-network tests** in the separate PyTorch runtime. All five model
 bundles loaded and ran CPU inference. Both supported pipelines completed real-scan
 IMS/XLSX exports and reopening checks; original scan checksums and retained model

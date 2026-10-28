@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Version label (must match pyproject.toml, e.g. v0.9.1)
+        description: Version label (must match pyproject.toml, e.g. v0.9.2)
         required: true
         type: string
       ref:
