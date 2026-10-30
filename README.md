@@ -9,6 +9,17 @@ Original scans and annotations are opened read-only.
 **[Analysis guide](docs/fish-analysis.md)** · **[Documentation](docs/README.md)** ·
 **[Models and evaluation](docs/models.md)**
 
+![FISH Analysis reviewing consensus cell contours on an original microscopy scan](docs/images/analysis.png)
+*A completed both-detector consensus analysis opened in the app.*
+
+## Why this instead of Imaris?
+
+Imaris can perform similar segmentation and measurement tasks, but its ML surface
+segmentation relies on interactive foreground/background training and tuning.
+FISH Analysis uses fixed models trained for this project's microscopy acquisitions,
+so routine analysis requires no brush-stroke training or per-scan segmentation
+tuning. It is free, reproducible, and can export results back to Imaris for review.
+
 ## Get started
 
 Download the Windows x64 **EXE** or Linux x64 **AppImage** from the release.
