@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "engine": "signal-center-unet3d",
+  "config": {
+    "spacing_um": 0.15,
+    "margin_um": 1.2,
+    "sigma_um": 0.2,
+    "patch_size": 48,
+    "filters": 12,
+    "epochs": 30,
+    "batch_size": 4,
+    "learning_rate": 0.0001,
+    "patience": 10,
+    "match_radius_um": 0.6,
+    "detection_separation_um": 0.35,
+    "target_precision": 0.9,
+    "positive_weight": 30.0,
+    "seed": 123
+  },
+  "checkpoint": "best.pt",
+  "threshold": 0.7783125042915344,
+  "channel_thresholds": {
+    "excitation:488nm": 0.8143482804298401,
+    "excitation:543nm": 0.7435405850410461
+  }
+}

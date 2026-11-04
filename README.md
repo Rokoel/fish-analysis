@@ -5,7 +5,7 @@ review and edit their annotations, and measure physical 3D cell volumes,
 signal-to-border distances and distances between nearby signals of different colors.
 Original scans and annotations are opened read-only.
 
-**[Download v0.10.0](https://github.com/Rokoel/fish-analysis/releases/tag/v0.10.0)** ·
+**[Download v0.11.0](https://github.com/Rokoel/fish-analysis/releases/tag/v0.11.0)** ·
 **[Analysis guide](docs/fish-analysis.md)** · **[Documentation](docs/README.md)** ·
 **[Models and evaluation](docs/models.md)**
 
@@ -89,8 +89,8 @@ See [editing and measurements](docs/fish-analysis.md) and
 Use Python 3.12. On Linux, run `./setup-analysis.sh` then `./run-analysis.sh`;
 on Windows, run `setup-analysis.bat` then `run-analysis.bat`.
 Setup installs the separate PyTorch signal runtime. The repository includes the
-five component bundles: two detectors, two selectable contour U-Nets and one
-signal-center U-Net, supporting the single consensus pipeline.
+six component bundles: two detectors, two selectable contour U-Nets and two
+selectable signal-center U-Nets, supporting the single consensus pipeline.
 
 `./run-viewer.sh` opens the general Viewer and developer training tools.
 `./run-annotator.sh --audit /absolute/path/audit.json --output /absolute/path/annotations`

@@ -74,6 +74,10 @@ def main(arguments=None):
     window = AnalysisWindow(off_screen=True, settings=settings)
     try:
         assert window.pipeline_label.text() == 'Both-detector consensus'
+        assert window.signal_model_choice.findData('improved') >= 0
+        window.signal_model_choice.setCurrentIndex(window.signal_model_choice.findData('improved'))
+        assert Path(window.signal_model.text()).name == 'signals-center-unet-improved'
+        window.signal_model_choice.setCurrentIndex(window.signal_model_choice.findData('original'))
         window.contour_model.setCurrentIndex(window.contour_model.findData(args.contour_model))
         assert window.contour_model.currentData() == args.contour_model
         from .runtime_profile import packaged_profile

@@ -90,6 +90,11 @@ class EditingControls:
             action.triggered.connect(lambda checked, mode=mode: self.set_tool_mode(mode))
             self.actions[mode] = action
         self.actions['select'].setChecked(True)
+        self.show_removed_cells = QtWidgets.QCheckBox('Show removed cells')
+        self.show_removed_cells.setObjectName('show_removed_cells')
+        self.show_removed_cells.setToolTip('Show cells removed for having no signals in grey. They are excluded from exports. Adding a signal includes its cell in exports and restores its normal colour.')
+        self.show_removed_cells.toggled.connect(self.visibility)
+        self.toolbar.addWidget(self.show_removed_cells)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         self.selection_count = QtWidgets.QLabel('0 selected')

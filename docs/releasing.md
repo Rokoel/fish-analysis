@@ -9,8 +9,8 @@ No FISH scans or local training caches are required or distributed.
 The release contains `FISH-Analysis-v<version>-windows-x64.exe` and
 `FISH-Analysis-v<version>-linux-x64.AppImage`. Each file contains the GUI,
 Python, Qt/VTK, Imaris export templates and
-the five component model bundles: two detectors, two selectable contour U-Nets and
-one signal U-Net. Both-detector consensus is fixed; 96³ contours are selected by
+the six component model bundles: two detectors, two selectable contour U-Nets and
+two selectable signal U-Nets. Both-detector consensus is fixed; 96³ contours are selected by
 default, with longer-trained 64³ available in the dropdown. Linux downloads its
 verified neural runtime automatically on first launch, with a progress window.
 Windows includes the Visual Studio x64 redistributable DLLs app-locally, including

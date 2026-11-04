@@ -40,6 +40,8 @@ class AnnotationDocument:
     def __init__(self, dataset, report=None, changed=lambda: None):
         self.dataset, self.changed = dataset, changed
         self.report_template = deepcopy(report or annotation_report(dataset))
+        from .filtered_cells import review_metadata
+        review_metadata(self.report_template)
         self.pairing_max_distance = self.report_template.get('signal_pairing', {}).get('maximum_distance_um', DEFAULT_MAX_DISTANCE_UM)
         self.undo = QtGui.QUndoStack()
         self.bindings = {}
@@ -62,11 +64,11 @@ class AnnotationDocument:
             a = self.signal_index(m)
             if a is not None and self.bindings[i] is None:
                 candidates = [j for j, s in enumerate(surfaces)
-                              if origin(s) == origin(m) and s.time == m.times[a]]
+                              if origin(s) == origin(m) and s.time == m.times[a] and s.filtered_cell_id is None]
                 self.bindings[i] = self.containing(m.points[a], candidates)
                 if self.bindings[i] is None:
                     self.bindings[i] = self.containing(m.points[a], [j for j, s in enumerate(surfaces)
-                                                                   if s.time == m.times[a]])
+                                                                   if s.time == m.times[a] and s.filtered_cell_id is None])
         manual_points = self.report_template.get("manual_measurements", {}).get(
             "points", []
         )
@@ -133,6 +135,14 @@ class AnnotationDocument:
 
     def containing(self, point, candidates=None):
         return containing_surface(self.dataset.scene.surfaces, point, candidates)
+
+    def signal_cell(self, point, time, preferred_cell=None):
+        """Prefer the edited cell and review contours over overlapping imported cells."""
+        surfaces = self.dataset.scene.surfaces
+        candidates = [i for i, s in enumerate(surfaces) if s.time == time]
+        candidates.sort(key=lambda i: (i != preferred_cell, surfaces[i].filtered_cell_id is None,
+                                       origin(surfaces[i]) != 'Program'))
+        return self.containing(point, candidates)
 
     def snapshot(self):
         return deepcopy((self.dataset.scene, self.bindings, self.channels, self.scores, self.pairing_max_distance))
@@ -208,8 +218,7 @@ class AnnotationDocument:
                     if self.bindings.get(i) not in cells:
                         previous = self.bindings.get(i)
                         a = self.signal_index(obj)
-                        self.bindings[i] = self.containing(obj.points[a], [j for j, s in enumerate(self.dataset.scene.surfaces)
-                                                                        if s.time == obj.times[a]]) if a is not None else None
+                        self.bindings[i] = self.signal_cell(obj.points[a], obj.times[a], previous) if a is not None else None
                         if previous is not None and self.bindings[i] is None and a is not None:
                             obj.points, obj.labels, obj.times, obj.edges = obj.points[[a]], ['A'], [obj.times[a]], []
         self.apply('Move selected objects', change)
@@ -292,6 +301,10 @@ class AnnotationDocument:
         self.apply('Add layered cell contour', change)
 
     def recalculate(self):
+        populated = {self.bindings.get(i) for i, m in enumerate(self.dataset.scene.measurements)
+                     if self.signal_index(m) is not None}
+        for i, surface in enumerate(self.dataset.scene.surfaces):
+            surface.export_included = surface.filtered_cell_id is None or i in populated
         for i, m in enumerate(self.dataset.scene.measurements):
             cell = self.bindings.get(i)
             m.cell_uid = self.dataset.scene.surfaces[cell].uid if cell is not None else None
@@ -415,20 +428,7 @@ class AnnotationDocument:
                 obj.points[vertex] = xyz
                 self.scores[index] = None
                 previous = self.bindings.get(index)
-                self.bindings[index] = (
-                    self.containing(xyz, [previous]) if previous is not None else None
-                )
-                if self.bindings[index] is None:
-                    self.bindings[index] = self.containing(
-                        xyz,
-                        [
-                            j
-                            for j, s in enumerate(self.dataset.scene.surfaces)
-                            if origin(s) == "Program"
-                        ],
-                    )
-                if self.bindings[index] is None:
-                    self.bindings[index] = self.containing(xyz)
+                self.bindings[index] = self.signal_cell(xyz, obj.times[vertex], previous)
                 if self.bindings[index] is None:
                     obj.points = obj.points[[vertex]]
                     obj.labels = ["A"]
@@ -598,7 +598,7 @@ class AnnotationDocument:
 
         self.apply("Delete contour point", change)
 
-    def add_signal(self, xyz, channel):
+    def add_signal(self, xyz, channel, preferred_cell=None):
         if channel is None:
             raise ValueError("Select a signal channel first.")
 
@@ -618,14 +618,7 @@ class AnnotationDocument:
             self.dataset.scene.measurements.append(m)
             self.channels[i] = channel
             self.scores[i] = None
-            self.bindings[i] = self.containing(
-                np.asarray(xyz),
-                [
-                    j
-                    for j, s in enumerate(self.dataset.scene.surfaces)
-                    if s.time == self.dataset.time
-                ],
-            )
+            self.bindings[i] = self.signal_cell(np.asarray(xyz), self.dataset.time, preferred_cell)
 
         self.apply("Add signal", change)
 
@@ -655,6 +648,8 @@ class AnnotationDocument:
                                 maximum_distance_um=self.pairing_max_distance, unit='um'),
         )
         for i, s in enumerate(self.dataset.scene.surfaces):
+            if not s.export_included:
+                continue
             row = {"cell_id": s.uid, "cell_name": s.name, "volume_um3": self.volumes[i]}
             (
                 result["manual_measurements"]["cells"]
@@ -692,4 +687,8 @@ class AnnotationDocument:
                 if origin(m) == "Manual"
                 else result["points"]
             ).append(row)
+        if 'filtered_cell_review' in result:
+            review = result['filtered_cell_review']
+            review['cell_ids'] = [s.filtered_cell_id for s in self.dataset.scene.surfaces
+                                  if s.filtered_cell_id is not None and s.run_id == review.get('run_id')]
         return result

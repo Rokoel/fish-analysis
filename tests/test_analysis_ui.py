@@ -64,6 +64,59 @@ def test_channel_review_and_processing_summary(qapp, tmp_path, ims_file):
         window.close()
 
 
+def test_signal_model_choice_reaches_pipeline_and_survives_restart(qapp, tmp_path, ims_file, monkeypatch):
+    from fish_viewer.analysis import app as analysis_app
+    from fish_viewer.analysis.controller import default_models
+
+    experimental = tmp_path / 'experimental-signals'
+    options = [('original', 'Original (default)', default_models()[1]),
+               ('improved', 'New trained model (experimental)', experimental)]
+    monkeypatch.setattr(analysis_app, 'signal_model_options', lambda: options)
+    window, item = window_with_scan(qapp, tmp_path, ims_file)
+    settings = window.settings
+    calls = []
+    monkeypatch.setattr(window.controller, 'start', lambda *a, **kw: calls.append(a))
+    try:
+        assert window.signal_model_choice.currentData() == 'original'
+        window.signal_model_choice.setCurrentIndex(window.signal_model_choice.findData('improved'))
+        assert 'Signals: New trained model (experimental)' in window.processing_summary.text()
+        item.setSelected(True)
+        window.start()
+        assert calls[0][3] == str(experimental)
+        assert not window.signal_model_choice.isEnabled()
+        window.cancelled()
+    finally:
+        window.close()
+    restored = AnalysisWindow(settings=settings)
+    try:
+        assert restored.signal_model_choice.currentData() == 'improved'
+        assert restored.signal_model.text() == str(experimental)
+    finally:
+        restored.close()
+    monkeypatch.setattr(analysis_app, 'signal_model_options', lambda: options[:1])
+    missing = AnalysisWindow(settings=settings)
+    try:
+        assert missing.signal_model_choice.currentData() == 'original'
+        assert Path(missing.signal_model.text()) == default_models()[1]
+    finally:
+        missing.close()
+
+
+def test_experimental_signal_option_requires_installed_bundle(tmp_path, monkeypatch):
+    from fish_viewer.analysis import controller
+
+    original = controller.default_models()[1]
+    monkeypatch.setattr(controller, 'default_models', lambda: (tmp_path / 'cells', original))
+    monkeypatch.setattr(controller, 'bundled_model', lambda name: tmp_path / name)
+    assert [key for key, _, _ in controller.signal_model_options()] == ['original']
+    bundle = tmp_path / 'signals-center-unet-improved'
+    bundle.mkdir()
+    (bundle / 'signal-model.json').write_text('{}')
+    assert len(controller.signal_model_options()) == 1
+    (bundle / 'best.pt').write_bytes(b'checkpoint')
+    assert controller.signal_model_options()[-1] == ('improved', 'New trained model (experimental)', bundle)
+
+
 def test_overview_tracks_edits_and_panel_is_visible(qapp, tmp_path, ims_file):
     window, _ = window_with_scan(qapp, tmp_path, ims_file)
     try:

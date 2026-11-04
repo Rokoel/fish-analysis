@@ -44,6 +44,12 @@ class Surface:
     edited: bool = False
     native_id: str | None = None
     native_xml: bytes | None = None
+    filtered_cell_id: int | None = None  # Original label excluded for lacking signals.
+    export_included: bool = True
+
+    @property
+    def display_color(self):
+        return self.color if self.export_included else (0.55, 0.55, 0.55)
 
 
 @dataclass

@@ -129,3 +129,37 @@ def test_nonfinite_dense_output_is_rejected_instead_of_silent_empty_result():
             return dict(heatmaps=(torch.full((1, 1, *x.shape[-3:]), float('nan')),))
     with pytest.raises(ValueError, match='Non-finite signal-center inference'):
         predict_volume(Broken(), np.zeros((3, 16, 16, 16), np.float32), torch.device('cpu'))
+
+
+def test_channel_cutoffs_follow_wavelength_when_channels_are_reordered():
+    from fish_viewer.spots.calibration import accepted_points
+    manifest = dict(threshold=.8, channel_thresholds={'excitation:488nm': .6, 'excitation:543nm': .9})
+    points = [dict(cell_id=1, channel=0, xyz=[0, 0, 0], score=.7),
+              dict(cell_id=1, channel=1, xyz=[0, 0, 0], score=.85)]
+    channels = [dict(name='Ch1', excitation_nm=488.), dict(name='Ch2', excitation_nm=543.)]
+    assert accepted_points(dict(channels=channels, candidates=points), manifest, .35) == points[:1]
+    reordered = [dict(p, channel=1 - p['channel']) for p in points]
+    assert accepted_points(dict(channels=channels[::-1], candidates=reordered), manifest, .35) == reordered[:1]
+
+
+def test_unknown_channel_identity_uses_global_cutoff():
+    from fish_viewer.spots.calibration import accepted_points, channel_key
+    assert channel_key(dict(name='Ch3-T1')) is None
+    assert channel_key(dict(name='Channel 2')) is None
+    manifest = dict(threshold=.8, channel_thresholds={'excitation:488nm': .6})
+    points = [dict(cell_id=1, channel=0, xyz=[0, 0, 0], score=.7),
+              dict(cell_id=2, channel=1, xyz=[2, 0, 0], score=.9)]
+    case = dict(channels=[dict(name='Ch1'), dict(name='Channel 2')], candidates=points)
+    assert accepted_points(case, manifest, .35) == points[1:]
+
+
+def test_channel_cutoff_manifest_rejects_nonfinite_values(tmp_path):
+    from dataclasses import asdict
+    import json
+    from fish_viewer.spots.config import read_model
+    (tmp_path / 'best.pt').write_bytes(b'checkpoint')
+    manifest = dict(version=1, engine='signal-center-unet3d', config=asdict(CenterConfig()),
+                    checkpoint='best.pt', threshold=.7, channel_thresholds={'excitation:488nm': float('nan')})
+    (tmp_path / 'signal-model.json').write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match='channel cutoffs'):
+        read_model(tmp_path)

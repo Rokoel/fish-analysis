@@ -176,7 +176,8 @@ def build_supervision_audit(cell_report, collection_audit, output, emit=print):
             fingerprint=case['audit']['fingerprint'], cell_predictions=predictions[case['image']]['predictions'],
             truth=prepared['truth'], markers=prepared['points'],
             membrane_channel=prepared['membrane'],
-            channels=[dict(name=channel.name, color=list(channel.color)) for channel in dataset.metadata.channels]))
+            channels=[dict(name=channel.name, color=list(channel.color), excitation_nm=channel.excitation_nm)
+                      for channel in dataset.metadata.channels]))
         emit(dict(kind='progress', phase='Preparing marked-cell signal supervision',
                   current=index+1, total=len(collection['cases']), file=case['image']))
         _json(output/'audit.json', report)

@@ -285,7 +285,8 @@ class EditingInteraction:
             keys = self.object_keys_at(position)
             if self.mode == 'add':
                 if self.tool.currentIndex() == 2:
-                    self.perform(lambda: self.document.add_signal(xyz, self.signal_channel.currentData()))
+                    cell = self.selection[1] if self.single_contour() and self.selection[0] == 'surface' else None
+                    self.perform(lambda: self.document.add_signal(xyz, self.signal_channel.currentData(), preferred_cell=cell))
                 elif self.tool.currentIndex() == 1:
                     if self.single_contour():
                         self.add_contour_point(xyz, position)

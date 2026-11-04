@@ -11,7 +11,7 @@ def test_bundled_defaults_match_requested_pipeline():
     assert Path(default_proposal_model()).name=='proposals'
     assert Path(default_refinement_model()).name=='contours-96'
     assert Path(default_refinement_model('64')).name=='contours-64'
-    assert set(json.loads((default_models()[0].parent/'origins.json').read_text())) == {'cells-sensitive','proposals','contours-96','contours-64','signals-center-unet'}
+    assert set(json.loads((default_models()[0].parent/'origins.json').read_text())) == {'cells-sensitive','proposals','contours-96','contours-64','signals-center-unet','signals-center-unet-improved'}
 
 
 @pytest.mark.parametrize('selected',['conservative','hybrid','crop','signal-first','preprocessed','consensus','stardist2d'])

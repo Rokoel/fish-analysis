@@ -1,51 +1,29 @@
-# FISH Analysis v0.10.0
+# FISH Analysis v0.11.0
 
-Both-detector consensus is now the app's only analysis pipeline. Its name appears
-as fixed information, with no pipeline chooser. The **Contour model** dropdown
-selects **96³ (default)** or **64³ — longer-trained**; the same selected U-Net draws
-contours for both detector branches. The choice persists across launches.
+## Signal model choice
 
-## Newly bundled contour models
+**Analysis settings → Signal model** now offers the original model and the newly
+trained experimental U-Net with stain/channel-specific cutoffs. Both checkpoints
+are bundled; the original remains the default, and your selection is remembered.
+The new model found more test signals with more false positives: recall 93.0%
+versus 90.1%, precision 81.4% versus 83.8%. It is an alternative for review,
+not a replacement default.
 
-Both new checkpoints are seed 42, epoch 19 of an additional 20-epoch fine-tuning
-run. Two seeds completed for each plain crop size, plus one CLAHE control. Remaining
-runs were cancelled at the user's request. Checkpoint and seed selection used
-validation data; the 96³ default was frozen before the final test comparison.
+## Review cells without detected signals
 
-| Contour checkpoint | Test surface error ↓ | Test volume MAPE ↓ | Mean IoU ↑ |
-| --- | ---: | ---: | ---: |
-| Previous selected 64³ | 0.1130 µm | 4.52% | 0.8619 |
-| New 64³ | **0.1080 µm** | **4.18%** | **0.8665** |
-| New 96³ (default) | 0.1096 µm | 4.26% | 0.8652 |
+**Show removed cells** displays cells excluded for having no signals, in grey in
+2D and 3D. They remain absent from Imaris and Excel exports. Adding a signal inside
+a grey cell automatically includes it in exports and restores its normal colour.
+Deleting or moving its last signal outside the cell excludes it again; undo and
+redo restore the corresponding state. Selected review cells take precedence over
+overlapping imported annotations when adding signals.
 
-Each new model matched all 508 complete manual test cells at IoU ≥0.5. The 64³
-point estimates are slightly better; direct 96³–64³ acquisition-bootstrap intervals
-include zero. The selected default is not a claim of proven superiority. The test
-uses manual boxes/interior seeds and historically reused folds. It isolates contour
-drawing and does not establish end-to-end consensus recall or signal-distance
-accuracy. Old full-consensus results retain their original model identity.
-
-The release includes a **training-comparison archive** with the report, all five
-training histories, per-epoch and per-cell CSVs, curves, checkpoint identities,
-original protocol, cancellation amendment and bootstrap intervals. See the
-[full report](https://github.com/Rokoel/fish-analysis/blob/v0.10.0/reports/contour-training-20261104/README.md).
-
-## Reliability and migration
-
-- Fine-tuning loads initial checkpoint weights before validation/training.
-- Initial and per-epoch validation share preprocessing, threshold and scored identities.
-- Both checkpoint-selection modes retain epoch zero if training does not improve it.
-- Saved StarDist 2D or other retired pipeline choices migrate to consensus.
-- Analysis provenance records the contour crop size and exact checkpoint hash.
-- StarDist 2D, the previous contour bundle, obsolete scripts/tests and its redundant
-  reports are removed. Shared readers, geometry, training and evaluation remain.
-
-Roundness remains 82% by default (75–100% selectable). Signal detection, editing,
-signal pairing and standalone annotated IMS/Excel export retain their workflows.
+Saved analyses can restore these cells while their internal contour files remain
+available. Cells rejected earlier by consensus or roundness are not restored.
 
 ## Downloads
 
-Windows x64 EXE and Linux x64 AppImage are published after native build and installed
-application checks pass. Windows uses CPU; Linux supports CPU/NVIDIA GPU inference
-with its verified neural runtime. The release includes model hashes, build metadata,
-checksums and the training-comparison archive. Original microscopy data are excluded.
+Windows x64 EXE and Linux x64 AppImage include all six model bundles and are
+published after native build and installed-application checks pass. Windows uses
+CPU; Linux supports CPU/NVIDIA GPU inference with its verified neural runtime.
+Original scans, training crops and experimental reports are not distributed.

@@ -138,7 +138,8 @@ def scoring_regions(index, split):
 
 
 def predict_records(model, index, split, config, device, emit=lambda e: None, regions=None):
-    cases = [dict(image=c['image'], group=c['group'], truth=c['truth'], candidates=[]) for c in index['cases'] if c['split'] == split]
+    cases = [dict(image=c['image'], group=c['group'], truth=c['truth'], channels=c.get('channels', []), candidates=[])
+             for c in index['cases'] if c['split'] == split]
     lookup = {c['image']: c for c in cases}
     records = [r for r in index['records'] if r['split'] == split]
     regions = regions if regions is not None else scoring_regions(index, split)

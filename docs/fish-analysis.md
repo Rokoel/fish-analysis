@@ -9,7 +9,7 @@ and exports a standalone annotated Imaris image and an Excel workbook.
 
 Use Python 3.12 for source installations. Run `./setup-analysis.sh`, then
 `./run-analysis.sh` on Linux; run `setup-analysis.bat`, then `run-analysis.bat`
-on Windows. Setup installs the separate PyTorch signal runtime. The five required
+on Windows. Setup installs the separate PyTorch signal runtime. The six
 component model bundles are included in the repository. Native Windows runs the
 TensorFlow cell models on CPU; Linux supports CPU and a configured NVIDIA GPU.
 Both platforms read the same image pixels and use the same physical calibration.
@@ -25,13 +25,13 @@ runtime and platform details.
 2. Preview each scan. Open **Channels…** to choose its cell channel and one or more
    signal channels. Choices persist per file. **Check channels** prompts review
    when metadata does not unambiguously identify the membrane stain.
-3. Choose an output folder. Under **Analysis settings**, select a contour model
-   and device. **Both-detector consensus** is the fixed pipeline.
+3. Choose an output folder. Under **Analysis settings**, select contour and signal
+   models and a device. **Both-detector consensus** is the fixed pipeline.
 4. Click **Analyze selected**. Scans run sequentially. Cancel preserves finished
    results; **Select unfinished scans** prepares pending, failed and cancelled scans
    for retry. A failed scan retains its error and the queue continues.
 
-The processing summary shows consensus, the contour model, device and channel roles.
+The processing summary shows consensus, contour and signal models, device and channel roles.
 The **Contour model** dropdown has exactly two choices:
 
 | Contour model | Behavior |
@@ -45,6 +45,9 @@ contours supported by both detectors. A common signal-center U-Net follows.
 Saved retired pipeline preferences migrate to consensus; contour preferences are
 remembered. Analysis performs inference only. See the [model comparison](../reports/contour-training-20261104/README.md).
 
+**Signal model** offers **Original (default)** and, when installed,
+**New trained model (experimental)** with stain/channel cutoffs. Your choice is remembered.
+
 **Minimum roundness** defaults to **82%**, with a UI range of **75–100%**.
 It is calibrated 3D sphericity `π^(1/3) (6V)^(2/3) / A` on the voxel mask.
 Raising the gate rejects irregular cells without changing contours that survive.
@@ -56,6 +59,12 @@ Signals are detected separately in the selected signal channels. A cell survives
 when at least one accepted signal center lies inside it. Volumes use closed meshes.
 For signal A, B is the closest point anywhere on its cell mesh in physical XYZ;
 the A–B length is the signal-to-border distance.
+
+**Show removed cells** toggles cells excluded for having no signals. They are grey
+and absent from exports. Select one and use **Add new → Signal** inside it to
+restore its normal colour and include it in exports. Removing its last signal or
+undoing the addition excludes it again. Saved analyses need their internal contour
+files to restore removed cells.
 
 For each pair of different signal channels within the same cell and time point,
 the closest available signals are paired first, with each signal used at most once

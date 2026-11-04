@@ -49,4 +49,8 @@ def read_model(directory):
         raise ValueError('Missing direct signal-center checkpoint.')
     if not 0 <= manifest['threshold'] <= 1:
         raise ValueError('Invalid center acceptance cutoff.')
+    if not isinstance(manifest.get('channel_thresholds', {}), dict) or any(
+            not isinstance(k, str) or not isinstance(v, (int, float)) or not math.isfinite(v) or not 0 <= v <= 1
+            for k, v in manifest.get('channel_thresholds', {}).items()):
+        raise ValueError('Invalid signal channel cutoffs.')
     return manifest

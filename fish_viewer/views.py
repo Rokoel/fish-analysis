@@ -170,7 +170,7 @@ class SliceView(QtWidgets.QGraphicsView):
                     path.moveTo(float(a[u]), float(a[v]))
                     path.lineTo(float(b[u]), float(b[v]))
                 selected = self.is_selected('surface', i)
-                color = SELECTED_COLOR if selected else QtGui.QColor.fromRgbF(*surface.color)
+                color = SELECTED_COLOR if selected and surface.export_included else QtGui.QColor.fromRgbF(*surface.display_color)
                 pen = QtGui.QPen(color)
                 pen.setWidthF(4 if selected else 1.4)
                 pen.setCosmetic(True)
@@ -370,7 +370,7 @@ class VolumeView(QtWidgets.QWidget):
         self.update_volume()
         for surface in dataset.scene.surfaces:
             display_mesh = mesh_for(surface).clean()
-            actor = self.plotter.add_mesh(display_mesh, color=surface.color,
+            actor = self.plotter.add_mesh(display_mesh, color=surface.display_color,
                 opacity=self.surface_opacity, smooth_shading=True, render=False,
                 show_scalar_bar=False, pickable=True)
             self._mesh_actors.append(actor)
@@ -440,7 +440,7 @@ class VolumeView(QtWidgets.QWidget):
             prop = actor.GetProperty()
             selected = self.is_selected('surface', i)
             prop.SetOpacity(max(.6, self.surface_opacity) if selected else self.surface_opacity)
-            prop.SetColor((1., .94, .42) if selected else surface.color)
+            prop.SetColor((1., .94, .42) if selected and surface.export_included else surface.display_color)
             if self.wireframe:
                 prop.SetRepresentationToWireframe()
             else:

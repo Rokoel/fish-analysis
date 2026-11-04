@@ -16,12 +16,12 @@ from ..pipeline.runner import _json
 from ..pipeline.segmentation import Cancelled, checkpoint
 from ..signals.data import normalized, at_labels
 from ..signals.engine import image_fingerprint
-from ..signals.evaluation import suppress
 from ..workflow.results import write_tables
 from .config import CenterConfig, read_model
 from .data import crop_inputs, resample_crop
 from .detection import local_centers
 from .network import create
+from .calibration import accepted_points
 from .training import predict_volume
 
 
@@ -63,7 +63,8 @@ def apply(image, scene, cell_predictions, model_directory, output, device_name='
         if image_fingerprint(dataset) != metadata['fingerprint']:
             raise ValueError('Cell contours belong to different image pixels.')
         report['fingerprint'] = metadata['fingerprint']
-        report['channels'] = [dict(name=c.name, color=list(c.color)) for c in dataset.metadata.channels]
+        report['channels'] = [dict(name=c.name, color=list(c.color), excitation_nm=c.excitation_nm) for c in dataset.metadata.channels]
+        report['channel_thresholds'] = manifest.get('channel_thresholds', {})
         membrane = int(metadata['channel']); report['membrane_channel'] = membrane
         from ..channel_roles import signal_indices
         selected_channels=signal_indices(len(dataset.volumes),membrane,signal_channels)
@@ -87,7 +88,7 @@ def apply(image, scene, cell_predictions, model_directory, output, device_name='
                 rows = local_centers(heatmap, mask, crop_origin, config, cell, channel, floor=min(.01, manifest['threshold']))
                 membership = at_labels(labels, [p['xyz'] for p in rows], metadata['origin_xyz'], metadata['spacing_zyx'])
                 proposed.extend(p for p, owner in zip(rows, membership) if owner == cell)
-        points = suppress(proposed, [p['score'] for p in proposed], manifest['threshold'], config.detection_separation_um)
+        points = accepted_points(dict(candidates=proposed, channels=report['channels']), manifest, config.detection_separation_um)
         report['candidate_count'] = len(proposed)
         report['points'] = [dict(signal_id=i + 1, **p) for i, p in enumerate(points)]
         report['counts'] = [dict(cell_id=cell, channel=channel, channel_name=info['name'],

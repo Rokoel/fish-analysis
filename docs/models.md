@@ -12,6 +12,7 @@ chooses the U-Net used by both detectors; its preference is remembered.
 | [contours-96](../models/contours-96/) | Default shared 96³ contour U-Net |
 | [contours-64](../models/contours-64/) | Shared longer-trained 64³ contour U-Net |
 | [signals-center-unet](../models/signals-center-unet/) | Signal-center 3D U-Net |
+| [signals-center-unet-improved](../models/signals-center-unet-improved/) | Optional experimental signal U-Net with stain/channel cutoffs |
 
 Both contour checkpoints select seed 42 and epoch 19 of an additional 20-epoch run.
 They use the same architecture, threshold 0.55, raw normalized membrane plus Gaussian

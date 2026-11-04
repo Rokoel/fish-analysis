@@ -35,5 +35,12 @@
       "best.pt": "6584d38a03ac6655c0725ad4550ff12930c33b62c36958ad92ac9f5e0224eae3",
       "signal-model.json": "1509a66a65028785322e32f4fbbe7ca6d50fb40e54564c7e60cd752adfeae05d"
     }
+  },
+  "signals-center-unet-improved": {
+    "source": "signal-recipe-20261104/finetune-seed123",
+    "sha256": {
+      "best.pt": "ba2722d95f8b6765a10c586fc75e98694630a053d338b58927a282f1c0f51621",
+      "signal-model.json": "e4fea2ed5c90b642d41d4bdd661e5c846e28105134edd571ced94ac4edb26ddd"
+    }
   }
 }

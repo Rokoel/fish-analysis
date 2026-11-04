@@ -157,6 +157,8 @@ def export_document(document, path):
         )
     # Snapshot before export so later UI edits cannot change half an export.
     scene = deepcopy(document.dataset.scene)
+    included = {old: new for new, old in enumerate(i for i, s in enumerate(scene.surfaces) if s.export_included)}
+    scene.surfaces = [s for s in scene.surfaces if s.export_included]
     split_measurements(scene)
     report = document.report()
     metadata = deepcopy(document.dataset.metadata)
@@ -172,7 +174,7 @@ def export_document(document, path):
         staging = Path(temporary)
         _copy_image(source, staging / target.name, lambda e: None, None)
         report["editor_state"] = dict(
-            bindings=document.bindings,
+            bindings={i: included.get(cell) for i, cell in document.bindings.items()},
             channels=document.channels,
             scores=document.scores,
         )

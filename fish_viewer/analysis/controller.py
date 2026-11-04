@@ -15,7 +15,8 @@ from PySide6 import QtCore
 from ..neural.config import NeuralConfig
 from ..neural.model_picker import read_model
 
-BUNDLED_MODELS = ('cells-sensitive', 'proposals', 'contours-96', 'contours-64', 'signals-center-unet')
+BUNDLED_MODELS = ('cells-sensitive', 'proposals', 'contours-96', 'contours-64',
+                  'signals-center-unet', 'signals-center-unet-improved')
 CONTOUR_MODELS = (('96', '96³ (default)', 'contours-96'),
                   ('64', '64³ — longer-trained', 'contours-64'))
 
@@ -32,6 +33,15 @@ def default_models():
     if not (signals / 'signal-model.json').is_file():
         raise FileNotFoundError('The bundled signal-center U-Net model is missing.')
     return cells, signals
+
+
+def signal_model_options():
+    """Offer the experimental bundle when installed without changing the default."""
+    options = [('original', 'Original (default)', default_models()[1])]
+    experimental = bundled_model('signals-center-unet-improved')
+    if (experimental / 'signal-model.json').is_file() and (experimental / 'best.pt').is_file():
+        options.append(('improved', 'New trained model (experimental)', experimental))
+    return options
 
 
 def sensitive_stardist_model():

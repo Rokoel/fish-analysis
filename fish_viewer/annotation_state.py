@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 
 COLLECTIONS = ("surfaces", "measurements", "contours")
-FIELDS = ("uid", "run_id", "created_at", "cell_uid", "channel", "score", "name", "kind", "signal_uids")
+FIELDS = ("uid", "run_id", "created_at", "cell_uid", "channel", "score", "name", "kind", "signal_uids", "filtered_cell_id")
 
 
 def annotation_report(dataset):

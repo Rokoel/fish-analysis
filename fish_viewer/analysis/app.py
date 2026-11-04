@@ -14,7 +14,7 @@ from ..signals.overlays import read_signals
 from ..views import SliceView, VolumeView
 from ..display import auto_adjust
 from ..runtime_profile import configure_device_selector
-from .controller import AnalysisController, CONTOUR_MODELS, default_models, default_refinement_model, migrate_bundled_defaults, STAGES
+from .controller import AnalysisController, CONTOUR_MODELS, default_models, default_refinement_model, migrate_bundled_defaults, signal_model_options, STAGES
 
 
 class AnalysisWindow(QtWidgets.QMainWindow):
@@ -115,7 +115,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         form = QtWidgets.QFormLayout(self.options)
         migrate_bundled_defaults(self.settings)
         cells, signals = default_models()
-        # Fixed model folders belong to presets; they are not model pickers.
+        # Model paths are resolved from the available named choices.
         self.cell_model = QtWidgets.QLineEdit(str(cells))
         self.signal_model = QtWidgets.QLineEdit(str(signals))
         self.boundary_model = QtWidgets.QLineEdit()
@@ -131,6 +131,20 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.contour_model.currentIndexChanged.connect(self.select_contour_model)
         self.select_contour_model()
         form.addRow('Contour model', self.contour_model)
+        self.signal_model_choice = QtWidgets.QComboBox()
+        self.signal_model_choice.setObjectName('signal_model_choice')
+        self.signal_model_choice.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.signal_model_choice.setMinimumContentsLength(10)
+        self.signal_model_paths = {}
+        for key, label, path in signal_model_options():
+            self.signal_model_choice.addItem(label, key)
+            self.signal_model_paths[key] = str(path)
+        self.signal_model_choice.setToolTip('The new model uses stain/channel calibration. Testing found higher recall with more false positives than the original.')
+        selected = self.signal_model_choice.findData(self.settings.value('signal_model_choice', 'original'))
+        self.signal_model_choice.setCurrentIndex(max(0, selected))
+        self.signal_model_choice.currentIndexChanged.connect(self.select_signal_model)
+        self.select_signal_model()
+        form.addRow('Signal model', self.signal_model_choice)
         self.roundness = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.roundness.setRange(75, 100)
         saved_roundness = int(self.settings.value('minimum_roundness_percent', 82))
@@ -163,6 +177,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.processing_summary.setWordWrap(True)
         left.addWidget(self.processing_summary)
         self.contour_model.currentIndexChanged.connect(self.update_processing_summary)
+        self.signal_model_choice.currentIndexChanged.connect(self.update_processing_summary)
         self.device.currentIndexChanged.connect(self.update_processing_summary)
         row = QtWidgets.QHBoxLayout()
         self.run_button = self._button('Analyze selected', self.start, row)
@@ -190,7 +205,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.saved_button = self._button('Open saved analysis…', self.open_saved, left)
         self.results_button = self._button('Open result folder', self.open_result_folder, left)
         self.excel_button = self._button('Export Excel…', self.export_excel, left)
-        note = QtWidgets.QLabel('Processes time point 1. Cells without signals are removed. A = signal; B = nearest cell border.')
+        note = QtWidgets.QLabel('Processes time point 1. Cells without signals are excluded from exports. A = signal; B = nearest cell border.')
         note.setWordWrap(True)
         note.setObjectName('muted')
         left.addWidget(note)
@@ -370,7 +385,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         item = self.scans.currentItem()
         if item:
             roles = self.channel_summary(item.data(QtCore.Qt.ItemDataRole.UserRole))[0]
-        self.processing_summary.setText(f'Both-detector consensus · contours: {self.contour_model.currentText()}\nDevice: {self.device.currentText()}\n{roles}')
+        self.processing_summary.setText(f'Both-detector consensus · contours: {self.contour_model.currentText()}\nSignals: {self.signal_model_choice.currentText()}\nDevice: {self.device.currentText()}\n{roles}')
 
     def update_results_overview(self, report):
         sections = []
@@ -498,8 +513,14 @@ class AnalysisWindow(QtWidgets.QMainWindow):
                 for key in ('manual_measurements', 'signal_pairing'):
                     if key in saved:
                         report[key] = saved[key]
+                from .filtered_cells import restore_filtered_cells
+                restore_filtered_cells(dataset, report, manifest.get('annotation_run_id') or saved.get('annotation_run_id'))
             else:
                 dataset = load_dataset(entry_for_path(image))
+                from ..annotation_state import annotation_report
+                from .filtered_cells import restore_filtered_cells
+                saved = annotation_report(dataset)
+                restore_filtered_cells(dataset, saved)
                 report = None
             for channel, volume in zip(dataset.metadata.channels, dataset.volumes):
                 auto_adjust(channel, volume)
@@ -620,6 +641,12 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         choice = self.contour_model.currentData()
         self.boundary_model.setText(default_refinement_model(choice))
         self.settings.setValue('contour_model', choice)
+
+    def select_signal_model(self, *_):
+        choice = self.signal_model_choice.currentData()
+        self.signal_model.setText(self.signal_model_paths[choice])
+        self.settings.setValue('signal_model_choice', choice)
+        self.settings.setValue('signal_model', self.signal_model.text())
 
 
     def next_scan(self):

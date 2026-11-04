@@ -198,7 +198,12 @@ class AnnotationEditor(EditingControls, EditingInteraction, QtWidgets.QWidget):
                         if value is not None
                         else ""
                     )
-                    item = QtWidgets.QTreeWidgetItem([obj.name, label])
+                    excluded = kind == 'surface' and not obj.export_included
+                    item = QtWidgets.QTreeWidgetItem([obj.name + (' · not exported' if excluded else ''), label])
+                    if excluded:
+                        for column in (0, 1):
+                            item.setForeground(column, QtGui.QBrush(QtGui.QColor.fromRgbF(*obj.display_color)))
+                        item.setToolTip(0, 'No signals: review only. Add a signal inside this cell to include it in exports.')
                     item.setData(0, QtCore.Qt.ItemDataRole.UserRole, (kind, i))
                     parent.addChild(item)
                     if (kind, i) in self.selections:
@@ -206,6 +211,9 @@ class AnnotationEditor(EditingControls, EditingInteraction, QtWidgets.QWidget):
                     if (kind, i) == self.selection:
                         self.tree.setCurrentItem(item, 0, QtCore.QItemSelectionModel.SelectionFlag.NoUpdate)
         self.tree.blockSignals(False)
+        count = sum(not s.export_included for s in w.dataset.scene.surfaces)
+        self.show_removed_cells.setText(f'Show removed cells ({count})')
+        self.show_removed_cells.setEnabled(count > 0)
         view.selected = self.selection
         view.selected_objects = self.selections.copy()
         if w.volume_view and w._volume_dataset is w.dataset:
@@ -327,6 +335,8 @@ class AnnotationEditor(EditingControls, EditingInteraction, QtWidgets.QWidget):
                     if origin(obj) == "Manual"
                     else self.program.isChecked()
                 )
+                if hasattr(obj, 'export_included') and not obj.export_included:
+                    obj.visible = obj.visible and self.show_removed_cells.isChecked()
         self.window.refresh_annotations()
 
     def select_annotation(self, selection):

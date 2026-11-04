@@ -1,4 +1,4 @@
-"""Validate retained model checksums and exercise all five networks on CPU."""
+"""Validate retained model checksums and exercise all bundled networks on CPU."""
 import argparse
 import hashlib
 import json
@@ -29,7 +29,7 @@ def main():
     args = parser.parse_args()
     origins = json.loads((ROOT / 'models/origins.json').read_text())
     if set(origins) != set(BUNDLES):
-        parser.error('Model provenance must list exactly the five supported component bundles.')
+        parser.error('Model provenance must list exactly the supported component bundles.')
     for label, info in origins.items():
         for name, digest in info['sha256'].items():
             with (ROOT / 'models' / label / name).open('rb') as stream:
@@ -68,13 +68,15 @@ def main():
     outputs = model(np.zeros((1,) + (config.patch_size,) * 3 + (1,), np.float32), training=False).numpy()
     assert np.isfinite(outputs).all()
     shapes[folder.name] = list(outputs.shape)
-    with tempfile.TemporaryDirectory(prefix='fish-center-check-') as output:
-        process = subprocess.run(signal_control_command(signals, output), cwd=ROOT, text=True,
-            capture_output=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
-        if process.returncode:
-            raise RuntimeError(process.stderr[-6000:] + process.stdout[-6000:])
-        controls = json.loads(process.stdout.splitlines()[-1])['report']
-        assert controls['passed'], 'Signal network failed empty-signal controls.'
+    controls = {}
+    for name in ('signals-center-unet', 'signals-center-unet-improved'):
+        with tempfile.TemporaryDirectory(prefix='fish-center-check-') as output:
+            process = subprocess.run(signal_control_command(ROOT / 'models' / name, output), cwd=ROOT, text=True,
+                capture_output=True, env=dict(os.environ, PYTHONDONTWRITEBYTECODE='1'))
+            if process.returncode:
+                raise RuntimeError(process.stderr[-6000:] + process.stdout[-6000:])
+            controls[name] = json.loads(process.stdout.splitlines()[-1])['report']
+            assert controls[name]['passed'], f'{name} failed empty-signal controls.'
     print(json.dumps(dict(status='complete', default_pipeline='consensus', bundles=list(BUNDLES),
                          shapes=shapes, runtime=info, signal_controls=controls)))
 
