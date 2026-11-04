@@ -1,6 +1,7 @@
 """Run the existing inference workers in order without loading TensorFlow into Qt."""
 from dataclasses import asdict, replace
 from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -13,7 +14,10 @@ from PySide6 import QtCore
 
 from ..neural.config import NeuralConfig
 from ..neural.model_picker import read_model
-from ..neural.precision import evidence_preset
+
+BUNDLED_MODELS = ('cells-sensitive', 'proposals', 'contours-96', 'contours-64', 'signals-center-unet')
+CONTOUR_MODELS = (('96', '96³ (default)', 'contours-96'),
+                  ('64', '64³ — longer-trained', 'contours-64'))
 
 
 STAGES = [('cells', 'Detecting cell contours'), ('signals', 'Finding signals inside cells'),
@@ -35,8 +39,11 @@ def sensitive_stardist_model():
     return str(path) if (path / 'fish-model.json').is_file() else ''
 
 
-def default_refinement_model():
-    path = bundled_model('refinement-bias-candidate')
+def default_refinement_model(choice='96'):
+    names = {key: name for key, _, name in CONTOUR_MODELS}
+    if choice not in names:
+        raise ValueError('Choose the 96³ or longer-trained 64³ contour model.')
+    path = bundled_model(names[choice])
     return str(path) if (path / 'refinement-model.json').is_file() else ''
 
 
@@ -46,26 +53,24 @@ def default_proposal_model():
 
 
 def migrate_bundled_defaults(settings):
-    """Keep a supported explicit choice; migrate all retired choices to consensus."""
-    pipeline = settings.value('pipeline', 'consensus')
-    if pipeline not in ('consensus', 'stardist2d'):
-        pipeline = 'consensus'
-    settings.setValue('pipeline', pipeline)
-    settings.setValue('cell_model', str(bundled_model('cells-stardist2d' if pipeline == 'stardist2d' else 'cells-sensitive')))
+    """Use consensus and preserve a supported contour-model preference."""
+    choice = settings.value('contour_model', '96')
+    if choice not in {key for key, _, _ in CONTOUR_MODELS}:
+        choice = '96'
+    settings.setValue('pipeline', 'consensus')
+    settings.setValue('contour_model', choice)
+    settings.setValue('cell_model', str(default_models()[0]))
     settings.setValue('signal_model', str(default_models()[1]))
-    settings.setValue('boundary_model', default_refinement_model() if pipeline == 'consensus' else '')
-    settings.setValue('default_pipeline_version', 'two-pipelines-1')
+    settings.setValue('boundary_model', default_refinement_model(choice))
+    settings.setValue('default_pipeline_version', 'consensus-contours-2')
 
 
 def check_models(cells, signals):
     manifest = json.loads((Path(cells) / 'fish-model.json').read_text())
-    if manifest.get('engine') == 'stardist2d-slice':
-        from ..neural.slice_inference import read_model as read_slice_model
-        manifest = read_slice_model(cells)
-    elif manifest.get('engine') == 'stardist3d':
+    if manifest.get('engine') == 'stardist3d':
         manifest = read_model(cells)
     else:
-        raise ValueError('Choose the consensus StarDist detector or fine-tuned StarDist 2D.')
+        raise ValueError('Both-detector consensus requires the bundled StarDist 3D detector.')
     from ..signals.model import read_model as read_signal_model
     read_signal_model(signals)
     return manifest
@@ -93,15 +98,12 @@ class AnalysisController(QtCore.QObject):
         import math
         if not math.isfinite(maximum_pair_distance) or maximum_pair_distance <= 0:
             raise ValueError('The maximum signal-pair distance must be positive and finite.')
-        if pipeline not in (None, 'consensus', 'stardist2d'):
-            raise ValueError('Only both-detector consensus and fine-tuned StarDist 2D are supported.')
-        cells = cells or bundled_model('cells-stardist2d' if pipeline == 'stardist2d' else 'cells-sensitive')
+        if pipeline not in (None, 'consensus'):
+            raise ValueError('Only both-detector consensus is supported.')
+        cells = cells or default_models()[0]
         signals = signals or default_models()[1]
         manifest = check_models(cells, signals)
-        inferred = 'stardist2d' if manifest.get('engine') == 'stardist2d-slice' else 'consensus'
-        if pipeline is not None and pipeline != inferred:
-            raise ValueError('The cell checkpoint does not match the chosen pipeline.')
-        self.pipeline = inferred
+        self.pipeline = 'consensus'
         self.roundness = float(roundness) if roundness is not None else None
         if self.roundness is not None and not 0 <= self.roundness <= 1:
             raise ValueError('Minimum roundness must lie between 0 and 1.')
@@ -122,19 +124,17 @@ class AnalysisController(QtCore.QObject):
         self.cell_channel_arguments = ['--cell-channel', str(cell_channel)] if cell_channel is not None else []
         self.signal_channel_arguments = ['--signal-channels', *map(str, signal_channels)] if signal_channels is not None else []
         self.signal_model = str(Path(signals).resolve())
-        self.refinement_model = str(Path(refinement or default_refinement_model()).resolve()) if inferred == 'consensus' else None
-        self.consensus_model = str(Path(consensus_model or default_proposal_model()).resolve()) if inferred == 'consensus' else None
-        self.stardist_proposals = inferred == 'consensus'
-        if inferred == 'consensus':
-            from ..refinement.config import read_model as read_refinement
-            from ..proposals.config import read_model as read_proposals
-            read_refinement(self.refinement_model)
-            read_proposals(self.consensus_model)
+        self.refinement_model = str(Path(refinement or default_refinement_model()).resolve())
+        self.consensus_model = str(Path(consensus_model or default_proposal_model()).resolve())
+        self.stardist_proposals = True
+        from ..refinement.config import read_model as read_refinement
+        from ..proposals.config import read_model as read_proposals
+        contour_manifest = read_refinement(self.refinement_model)
+        read_proposals(self.consensus_model)
         self.stages = list(STAGES)
-        if inferred == 'consensus':
-            self.stages[1:1] = [('refine', 'Redrawing and checking StarDist proposals'),
-                                ('consensus_cells', 'Finding cells with the center/box model'),
-                                ('consensus', 'Keeping cells detected by both approaches')]
+        self.stages[1:1] = [('refine', 'Redrawing and checking StarDist proposals'),
+                            ('consensus_cells', 'Finding cells with the center/box model'),
+                            ('consensus', 'Keeping cells detected by both approaches')]
         if self.roundness is not None and self.roundness > 0:
             self.stages.insert(next(i for i,s in enumerate(self.stages) if s[0] == 'signals'), ('shape', 'Checking 3D cell roundness'))
         self.directory = Path(output).expanduser().resolve() / f'analysis-{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}'
@@ -142,27 +142,24 @@ class AnalysisController(QtCore.QObject):
         self.cancel_file = self.directory / 'cancel'
         self.stopping = False
         self.state = dict(version=1, engine='fish-analysis', status='running', source=str(self.image),
-                          source_scene=self.source_scene, pipeline=inferred, cell_model=str(Path(cells).resolve()),
+                          source_scene=self.source_scene, pipeline='consensus', cell_model=str(Path(cells).resolve()),
                           signal_model=self.signal_model, device=device, processed_time=0, stages={},
                           refinement_model=self.refinement_model, consensus_model=self.consensus_model,
+                          contour_patch_size=contour_manifest['config']['patch_size'],
+                          contour_checkpoint_sha256=hashlib.sha256((Path(self.refinement_model)/contour_manifest['checkpoint']).read_bytes()).hexdigest(),
                           cell_detector_engine=manifest.get('engine', 'stardist3d'), stardist_proposals=self.stardist_proposals,
                           minimum_roundness=self.roundness, maximum_pair_distance_um=maximum_pair_distance,
                           channel_roles=dict(cell=cell_channel, signals=signal_channels))
         self._persist()
         self.busy = True
         self.busy_changed.emit(True)
-        if inferred == 'stardist2d':
-            self._launch(0, ['-m', 'fish_viewer.neural.slice_inference', '--image', str(self.image),
-                            '--model', str(Path(cells).resolve()), '--output', str(self.directory/'work'),
-                            '--device', device, '--cancel-file', str(self.cancel_file)] + self.cell_channel_arguments)
-        else:
-            config = replace(NeuralConfig.from_dict(manifest['config']), device=device, cell_channel=cell_channel)
-            request = dict(config=asdict(config), mode='apply', model=str(Path(cells).resolve()),
-                           output=str(self.directory/'work'), cancel_file=str(self.cancel_file),
-                           entries=[dict(image=str(self.image), scene=None)])
-            target = self.directory/'cells-request.json'
-            target.write_text(json.dumps(request, indent=2), encoding='utf-8')
-            self._launch(0, ['-m', 'fish_viewer.neural', '--request', str(target)])
+        config = replace(NeuralConfig.from_dict(manifest['config']), device=device, cell_channel=cell_channel)
+        request = dict(config=asdict(config), mode='apply', model=str(Path(cells).resolve()),
+                       output=str(self.directory/'work'), cancel_file=str(self.cancel_file),
+                       entries=[dict(image=str(self.image), scene=None)])
+        target = self.directory/'cells-request.json'
+        target.write_text(json.dumps(request, indent=2), encoding='utf-8')
+        self._launch(0, ['-m', 'fish_viewer.neural', '--request', str(target)])
 
     def _persist(self):
         target = self.directory / 'analysis-result.json'

@@ -1,112 +1,51 @@
-# FISH Analysis v0.9.2
+# FISH Analysis v0.10.0
 
-This release focuses on more selective consensus detection, reliable imported
-annotations, contour editing, cross-channel measurements and standalone IMS/Excel
-export. **Both-detector consensus** remains the default, with **82% roundness**
-and a minimum selectable roundness of **75%**. **Fine-tuned StarDist 2D** is the
-other supported pipeline; both use the signal-center 3D U-Net.
+Both-detector consensus is now the app's only analysis pipeline. Its name appears
+as fixed information, with no pipeline chooser. The **Contour model** dropdown
+selects **96³ (default)** or **64³ — longer-trained**; the same selected U-Net draws
+contours for both detector branches. The choice persists across launches.
 
-## Consensus benchmark at 82% roundness
+## Newly bundled contour models
 
-Across **71 historical test scans**, with frozen checkpoints and reviewed cell
-channels:
+Both new checkpoints are seed 42, epoch 19 of an additional 20-epoch fine-tuning
+run. Two seeds completed for each plain crop size, plus one CLAHE control. Remaining
+runs were cancelled at the user's request. Checkpoint and seed selection used
+validation data; the 96³ default was frozen before the final test comparison.
 
-| Result | At 82% roundness |
-| --- | ---: |
-| Cells passing roundness, before signal filtering | 3,101 |
-| Retained cells containing signals | 1,031 |
-| Detected signals in retained cells | 1,063 |
-| Complete manual cells matched after signal filtering | 182 / 508 |
-| Volume mean absolute percentage error | 5.56% over 182 matched cells |
-| Signal-to-border distance mean absolute error | 0.115 µm over 166 matched signals |
-| Median matched-cell IoU | 0.880 |
-| 95th-percentile absolute volume percentage error | 14.90% |
-| 95th-percentile absolute distance error | 0.359 µm |
+| Contour checkpoint | Test surface error ↓ | Test volume MAPE ↓ | Mean IoU ↑ |
+| --- | ---: | ---: | ---: |
+| Previous selected 64³ | 0.1130 µm | 4.52% | 0.8619 |
+| New 64³ | **0.1080 µm** | **4.18%** | **0.8665** |
+| New 96³ (default) | 0.1096 µm | 4.26% | 0.8652 |
 
-The acquisition-bootstrap 95% interval is **3.58–7.91%** for mean absolute volume
-percentage error and **0.095–0.137 µm** for mean absolute distance error.
-Compared with the historical 50% gate, the 82% gate retains fewer cells
-(1,031 versus 1,558); the matched-subset volume error is 5.56% versus 8.67%, and
-distance error is 0.115 versus 0.131 µm. These comparisons involve different
-surviving subsets. Raising roundness rejects cells without improving the contours
-of cells that remain.
+Each new model matched all 508 complete manual test cells at IoU ≥0.5. The 64³
+point estimates are slightly better; direct 96³–64³ acquisition-bootstrap intervals
+include zero. The selected default is not a claim of proven superiority. The test
+uses manual boxes/interior seeds and historically reused folds. It isolates contour
+drawing and does not establish end-to-end consensus recall or signal-distance
+accuracy. Old full-consensus results retain their original model identity.
 
-Matches require one-to-one cell IoU ≥0.5; signal centers must match within 0.6 µm
-in the same cell and channel. Volume and distance errors exclude cut manual cells,
-retain outliers, and use actual manual A–B lines for distance references. They are
-conditional on matches. Sparse annotations cannot establish the overall precision
-of unmatched detections. This historically reused test fold is exploratory, not
-independent validation of the default threshold.
+The release includes a **training-comparison archive** with the report, all five
+training histories, per-epoch and per-cell CSVs, curves, checkpoint identities,
+original protocol, cancellation amendment and bootstrap intervals. See the
+[full report](https://github.com/Rokoel/fish-analysis/blob/v0.10.0/reports/contour-training-20261104/README.md).
 
-[Full roundness report and raw results](https://github.com/Rokoel/fish-analysis/blob/v0.9.2/reports/consensus-roundness-20261028/README.md) ·
-[Fine-tuned StarDist report](https://github.com/Rokoel/fish-analysis/blob/v0.9.2/reports/stardist2d/README.md)
+## Reliability and migration
 
-## Annotation and export fixes
+- Fine-tuning loads initial checkpoint weights before validation/training.
+- Initial and per-epoch validation share preprocessing, threshold and scored identities.
+- Both checkpoint-selection modes retain epoch zero if training does not improve it.
+- Saved StarDist 2D or other retired pipeline choices migrate to consensus.
+- Analysis provenance records the contour crop size and exact checkpoint hash.
+- StarDist 2D, the previous contour bundle, obsolete scripts/tests and its redundant
+  reports are removed. Shared readers, geometry, training and evaluation remain.
 
-- Correct native imported IMS mesh coordinates, normals and triangle connectivity,
-  and preserve independent measurement-line connections.
-- Use UUIDs and current-run provenance for annotations. Imported results from any
-  previous run are pre-existing, regardless of their names. Reanalysis creates
-  new identities instead of reusing local detector IDs.
-- Open source images and scenes read-only. Editing changes in-memory annotations;
-  export writes a new image copy and preserves source voxels.
-- Export exactly a standalone annotated **IMS** and an **Excel workbook**. Native
-  scene geometry, identities and assignments are embedded in the IMS. New
-  annotations receive UTC creation timestamps; imported names/dates are preserved.
+Roundness remains 82% by default (75–100% selectable). Signal detection, editing,
+signal pairing and standalone annotated IMS/Excel export retain their workflows.
 
-## Editing and display
+## Downloads
 
-- Default display interpolation smooths 2D and 3D image transitions. Auto display
-  better handles sparse puncta and dim fluorescence without changing raw pixels.
-- Selecting a cell or signal reveals its nearest visible slice. Selected objects
-  and list text have clearer contrast. Extreme zoom stays anchored.
-- The annotation/editing sidebar starts hidden. Contextual tools support selection,
-  precise editing, proportional editing, new layered contours and simplification.
-- Simplification processes eligible selected cells and reports which were skipped.
-  Contour changes update volumes and affected distances. Deleting a cell removes
-  its associated signals; undo restores them together. Stale selections are handled
-  safely after creation or deletion.
-
-## Cross-channel signal pairs
-
-Choose multiple signal channels and measure closest-first pairs within each cell
-and time point. Each signal is used once per channel pair. A configurable physical
-cutoff, initially **1 µm**, omits distant pairs. Pair lines and distances appear in
-the IMS and the workbook's **Signal pairs** sheet. Moving/deleting signals, editing
-cells, changing the cutoff and undo update these derived measurements.
-
-## Smaller supported codebase
-
-Only the two supported analysis pipelines and their five required component model
-bundles remain. Retired models and implementation branches, temporary experiments,
-obsolete documentation images and archived training annotations/metadata are
-removed. Reusable training and evaluation tools accept explicit inputs.
-
-Historical reports are consolidated into one local report, excluded from Git and
-release bundles. The latest consensus roundness report and fine-tuned StarDist
-report remain public, preserving their original cohorts and parameters.
-
-## Windows and standalone portability
-
-Generated roundness reports and their CSV tables now use explicit UTF-8 encoding,
-including on Windows systems whose default encoding cannot represent scientific
-symbols. A regression test reproduces that Windows encoding before checking the fix. Packaged model verification also uses the standalone
-launcher’s supported worker protocol; Python-only startup flags are kept out of
-commands sent to the executable.
-
-## Verification and downloads
-
-Local verification passed **349 tests**, with three skipped in the main environment,
-plus **nine signal-network tests** in the separate PyTorch runtime. All five model
-bundles loaded and ran CPU inference. Both supported pipelines completed real-scan
-IMS/XLSX exports and reopening checks; original scan checksums and retained model
-checkpoint hashes were preserved.
-
-Download the Windows x64 **EXE** or Linux x64 **AppImage** below. Windows uses CPU
-inference. Linux supports CPU/NVIDIA GPU inference and installs its verified neural
-runtime on first launch. Release automation builds and checks each platform's
-installed application before publishing its binaries and checksums.
-
-The native IMS export profile is based on the supplied annotated Imaris files;
-exports were checked by reopening them in this application. Opening these new
-exports in Imaris itself has not been verified in this environment.
+Windows x64 EXE and Linux x64 AppImage are published after native build and installed
+application checks pass. Windows uses CPU; Linux supports CPU/NVIDIA GPU inference
+with its verified neural runtime. The release includes model hashes, build metadata,
+checksums and the training-comparison archive. Original microscopy data are excluded.

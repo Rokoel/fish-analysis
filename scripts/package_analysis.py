@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from fish_viewer.analysis.controller import default_models, default_refinement_model, default_proposal_model, check_models
+from fish_viewer.analysis.controller import BUNDLED_MODELS, default_models, check_models
 
 
 def main():
@@ -46,7 +46,7 @@ def main():
         shutil.copytree(ROOT / name, destination / name,
                         ignore=lambda folder, names: [n for n in names if n in ('__pycache__', 'combined') or n.endswith('.pyc')])
     provenance = {}
-    model_sources = [(name, ROOT / 'models' / name) for name in ('cells-sensitive', 'proposals', 'refinement-bias-candidate', 'signals-center-unet', 'cells-stardist2d')]
+    model_sources = [(name, ROOT / 'models' / name) for name in BUNDLED_MODELS]
     for label, source in model_sources:
         target = destination / 'models' / label
         target.mkdir(parents=True)

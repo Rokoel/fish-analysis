@@ -14,7 +14,7 @@ from ..signals.overlays import read_signals
 from ..views import SliceView, VolumeView
 from ..display import auto_adjust
 from ..runtime_profile import configure_device_selector
-from .controller import AnalysisController, default_models, default_refinement_model, default_proposal_model, migrate_bundled_defaults, sensitive_stardist_model, STAGES
+from .controller import AnalysisController, CONTOUR_MODELS, default_models, default_refinement_model, migrate_bundled_defaults, STAGES
 
 
 class AnalysisWindow(QtWidgets.QMainWindow):
@@ -106,7 +106,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.output_button = self._button('Browse…', lambda: self.choose_folder(self.output), row)
         left.addLayout(row)
         self.options_button = QtWidgets.QToolButton()
-        self.options_button.setText('Pipeline and settings')
+        self.options_button.setText('Analysis settings')
         self.options_button.setCheckable(True)
         self.options_button.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.options_button.setArrowType(QtCore.Qt.ArrowType.RightArrow)
@@ -118,21 +118,19 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         # Fixed model folders belong to presets; they are not model pickers.
         self.cell_model = QtWidgets.QLineEdit(str(cells))
         self.signal_model = QtWidgets.QLineEdit(str(signals))
-        self.boundary_model = QtWidgets.QLineEdit('')
-        self.boundary_model.setPlaceholderText('Optional 3D U-Net model folder')
-        self.pipeline = QtWidgets.QComboBox()
-        self.pipeline.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.pipeline.setMinimumContentsLength(12)
-        self.pipeline.setMinimumWidth(0)
-        self.pipeline.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,QtWidgets.QSizePolicy.Policy.Fixed)
-        for label, key in (('Both-detector consensus (default)', 'consensus'), ('Fine-tuned StarDist 2D', 'stardist2d')):
-            self.pipeline.addItem(label, key)
-        self.pipeline.setToolTip('Each pipeline uses its current bundled models and the signal-center U-Net. No training is performed.')
-        form.addRow('Pipeline', self.pipeline)
-        self.pipeline.currentIndexChanged.connect(self.select_pipeline)
-        selected = self.pipeline.findData(self.settings.value('pipeline', 'consensus'))
-        self.pipeline.setCurrentIndex(max(0, selected))
-        self.select_pipeline()
+        self.boundary_model = QtWidgets.QLineEdit()
+        self.pipeline_label = QtWidgets.QLabel('Both-detector consensus')
+        form.addRow('Pipeline', self.pipeline_label)
+        self.contour_model = QtWidgets.QComboBox()
+        self.contour_model.setObjectName('contour_model')
+        for key, label, _ in CONTOUR_MODELS:
+            self.contour_model.addItem(label, key)
+        self.contour_model.setToolTip('The selected trained 3D U-Net draws contours for both detectors. 64³ uses less computation; 96³ samples each crop more finely.')
+        selected = self.contour_model.findData(self.settings.value('contour_model', '96'))
+        self.contour_model.setCurrentIndex(max(0, selected))
+        self.contour_model.currentIndexChanged.connect(self.select_contour_model)
+        self.select_contour_model()
+        form.addRow('Contour model', self.contour_model)
         self.roundness = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         self.roundness.setRange(75, 100)
         saved_roundness = int(self.settings.value('minimum_roundness_percent', 82))
@@ -164,7 +162,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         self.processing_summary = QtWidgets.QLabel()
         self.processing_summary.setWordWrap(True)
         left.addWidget(self.processing_summary)
-        self.pipeline.currentIndexChanged.connect(self.update_processing_summary)
+        self.contour_model.currentIndexChanged.connect(self.update_processing_summary)
         self.device.currentIndexChanged.connect(self.update_processing_summary)
         row = QtWidgets.QHBoxLayout()
         self.run_button = self._button('Analyze selected', self.start, row)
@@ -372,7 +370,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         item = self.scans.currentItem()
         if item:
             roles = self.channel_summary(item.data(QtCore.Qt.ItemDataRole.UserRole))[0]
-        self.processing_summary.setText(f'{self.pipeline.currentText()}\nDevice: {self.device.currentText()}\n{roles}')
+        self.processing_summary.setText(f'Both-detector consensus · contours: {self.contour_model.currentText()}\nDevice: {self.device.currentText()}\n{roles}')
 
     def update_results_overview(self, report):
         sections = []
@@ -610,19 +608,18 @@ class AnalysisWindow(QtWidgets.QMainWindow):
         for key, widget in [('output', self.output), ('cell_model', self.cell_model),
                             ('boundary_model', self.boundary_model), ('signal_model', self.signal_model)]:
             self.settings.setValue(key, widget.text())
-        self.settings.setValue('pipeline', self.pipeline.currentData())
+        self.settings.setValue('pipeline', 'consensus')
+        self.settings.setValue('contour_model', self.contour_model.currentData())
         self.settings.setValue('minimum_roundness_percent', self.roundness.value())
         self.settings.setValue('device', self.device.currentData())
 
         self.sync_buttons()
         self.next_scan()
 
-    def select_pipeline(self, *_):
-        key = self.pipeline.currentData()
-        root = Path(__file__).resolve().parents[2] / 'models'
-        self.cell_model.setText(str(root / ('cells-stardist2d' if key == 'stardist2d' else 'cells-sensitive')))
-        self.signal_model.setText(str(default_models()[1]))
-        self.boundary_model.setText(default_refinement_model() if key == 'consensus' else '')
+    def select_contour_model(self, *_):
+        choice = self.contour_model.currentData()
+        self.boundary_model.setText(default_refinement_model(choice))
+        self.settings.setValue('contour_model', choice)
 
 
     def next_scan(self):
@@ -645,7 +642,7 @@ class AnalysisWindow(QtWidgets.QMainWindow):
                                   self.signal_model.text(), self.device.currentData(), self.boundary_model.text().strip() or None,
                                   roundness=self.roundness.value()/100,
                                   maximum_pair_distance=self.pair_distance.value(),
-                                  pipeline=self.pipeline.currentData(),
+                                  pipeline='consensus',
                                   cell_channel=roles.get('cell'),signal_channels=roles.get('signals'),source_scene=item.data(QtCore.Qt.ItemDataRole.UserRole).get('scene'))
         except Exception as exc:
             self.failed(str(exc))

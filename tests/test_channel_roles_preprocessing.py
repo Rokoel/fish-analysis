@@ -133,26 +133,29 @@ def test_saved_preprocessing_recipe_is_required_and_checked():
 
 
 
-def test_stardist2d_preset_and_worker_preserve_channel_roles(qapp,tmp_path,monkeypatch):
+@pytest.mark.parametrize('choice',['96','64'])
+def test_contour_choice_and_consensus_preserve_channel_roles(qapp,tmp_path,monkeypatch,choice):
     from fish_viewer.analysis.app import AnalysisWindow
     from fish_viewer.analysis.controller import AnalysisController
     settings=QtCore.QSettings(str(tmp_path/'slice.ini'),QtCore.QSettings.Format.IniFormat)
     window=AnalysisWindow(settings=settings)
     try:
-        window.pipeline.setCurrentIndex(window.pipeline.findData('consensus'))
-        window.pipeline.setCurrentIndex(window.pipeline.findData('stardist2d'))
-        assert Path(window.cell_model.text()).name=='cells-stardist2d'
+        window.contour_model.setCurrentIndex(window.contour_model.findData(choice))
+        assert Path(window.cell_model.text()).name=='cells-sensitive'
         assert Path(window.signal_model.text()).name=='signals-center-unet'
-        assert not window.boundary_model.text()
+        assert Path(window.boundary_model.text()).name=='contours-'+choice
         scan=tmp_path/'scan.ims';scan.touch()
         controller=AnalysisController();launched=[]
         monkeypatch.setattr(controller,'_launch',lambda index,args:launched.append((index,args)))
         controller.start(scan,tmp_path/'runs',window.cell_model.text(),window.signal_model.text(),
-            cell_channel=1,signal_channels=[0],roundness=.82)
+            refinement=window.boundary_model.text(),cell_channel=1,signal_channels=[0],roundness=.82)
         args=launched[0][1]
-        assert args[:2]==['-m','fish_viewer.neural.slice_inference']
-        assert args[args.index('--cell-channel')+1]=='1'
-        assert controller.state['cell_detector_engine']=='stardist2d-slice'
+        assert args[:2]==['-m','fish_viewer.neural']
+        request=json.loads(Path(args[args.index('--request')+1]).read_text())
+        assert request['config']['cell_channel']==1
+        assert controller.state['cell_detector_engine']=='stardist3d'
+        assert controller.state['contour_patch_size']==int(choice)
+        assert controller.refinement_model==window.boundary_model.text()
         assert controller.signal_channel_arguments==['--signal-channels','0']
         assert ('shape','Checking 3D cell roundness') in controller.stages
     finally:window.close()

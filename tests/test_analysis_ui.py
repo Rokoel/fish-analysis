@@ -1,5 +1,6 @@
 """Processing choices, editable overview and batch recovery in the Analysis UI."""
 import time
+from pathlib import Path
 
 from PySide6 import QtCore, QtWidgets
 
@@ -50,9 +51,13 @@ def test_channel_review_and_processing_summary(qapp, tmp_path, ims_file):
         window.cell_channel_choice.setCurrentIndex(window.cell_channel_choice.findData(0))
         assert 'Check channels' not in item.text()
         assert 'Cell: 1; signals: 2' in window.processing_summary.text()
-        window.pipeline.setCurrentIndex(window.pipeline.findData('consensus'))
-        assert window.pipeline.count() == 2
-        assert window.pipeline.currentData() == 'consensus'
+        assert window.pipeline_label.text() == 'Both-detector consensus'
+        assert not hasattr(window, 'pipeline')
+        assert window.contour_model.count() == 2
+        assert window.contour_model.currentData() == '96'
+        window.contour_model.setCurrentIndex(window.contour_model.findData('64'))
+        assert Path(window.boundary_model.text()).name == 'contours-64'
+        assert '64³' in window.processing_summary.text()
         window.channel_roles[str(ims_file)] = dict(cell=0, signals=[])
         assert window.channel_summary(item.data(QtCore.Qt.ItemDataRole.UserRole))[1]
     finally:

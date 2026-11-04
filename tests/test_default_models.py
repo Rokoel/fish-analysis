@@ -9,21 +9,32 @@ def test_bundled_defaults_match_requested_pipeline():
     assert default_models()[0].name=='cells-sensitive'
     assert default_models()[1].name=='signals-center-unet'
     assert Path(default_proposal_model()).name=='proposals'
-    assert Path(default_refinement_model()).name=='refinement-bias-candidate'
-    assert set(json.loads((default_models()[0].parent/'origins.json').read_text())) == {'cells-sensitive','proposals','refinement-bias-candidate','cells-stardist2d','signals-center-unet'}
+    assert Path(default_refinement_model()).name=='contours-96'
+    assert Path(default_refinement_model('64')).name=='contours-64'
+    assert set(json.loads((default_models()[0].parent/'origins.json').read_text())) == {'cells-sensitive','proposals','contours-96','contours-64','signals-center-unet'}
 
 
-@pytest.mark.parametrize('selected,expected',[('conservative','consensus'),('hybrid','consensus'),('crop','consensus'),('signal-first','consensus'),('preprocessed','consensus'),('consensus','consensus'),('stardist2d','stardist2d')])
-def test_retired_choices_migrate_and_supported_choices_survive(tmp_path,selected,expected):
+@pytest.mark.parametrize('selected',['conservative','hybrid','crop','signal-first','preprocessed','consensus','stardist2d'])
+def test_retired_choices_migrate_to_consensus(tmp_path,selected):
     settings=QtCore.QSettings(str(tmp_path/'settings.ini'),QtCore.QSettings.Format.IniFormat)
     settings.setValue('pipeline',selected)
     migrate_bundled_defaults(settings)
-    assert settings.value('pipeline')==expected
-    assert Path(settings.value('cell_model')).name==('cells-stardist2d' if expected=='stardist2d' else 'cells-sensitive')
+    assert settings.value('pipeline')=='consensus'
+    assert Path(settings.value('cell_model')).name=='cells-sensitive'
     assert settings.value('signal_model')==str(default_models()[1])
-    assert settings.value('boundary_model')==(default_refinement_model() if expected=='consensus' else '')
+    assert settings.value('boundary_model')==default_refinement_model()
     migrate_bundled_defaults(settings)
-    assert settings.value('pipeline')==expected
+    assert settings.value('pipeline')=='consensus'
+
+
+@pytest.mark.parametrize('choice,expected',[('64','64'),('96','96'),('obsolete','96')])
+def test_contour_preference_survives_settings_migration(tmp_path,choice,expected):
+    settings=QtCore.QSettings(str(tmp_path/'contours.ini'),QtCore.QSettings.Format.IniFormat)
+    settings.setValue('contour_model',choice)
+    migrate_bundled_defaults(settings)
+    migrate_bundled_defaults(settings)
+    assert settings.value('contour_model')==expected
+    assert settings.value('boundary_model')==default_refinement_model(expected)
 
 
 def test_consensus_preserves_saved_detector_acceptance_and_refinement(tmp_path,monkeypatch):
@@ -43,6 +54,7 @@ def test_consensus_preserves_saved_detector_acceptance_and_refinement(tmp_path,m
     assert launches[0][0]==0
 
 
-def test_retired_pipeline_cannot_start(tmp_path):
+@pytest.mark.parametrize('pipeline',['hybrid','stardist2d'])
+def test_retired_pipeline_cannot_start(tmp_path,pipeline):
     with pytest.raises(ValueError,match='Only both-detector'):
-        AnalysisController().start(tmp_path/'scan.ims',tmp_path/'runs',pipeline='hybrid')
+        AnalysisController().start(tmp_path/'scan.ims',tmp_path/'runs',pipeline=pipeline)

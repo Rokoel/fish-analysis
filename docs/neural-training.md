@@ -2,9 +2,9 @@
 
 [Documentation](README.md) · [Data preparation](training-data.md)
 
-Analysis exposes fixed inference pipelines. Developer training remains separate:
-StarDist 3D proposals, center/box detection and the contour U-Net support consensus;
-fine-tuned StarDist 2D supports the other pipeline; the signal-center U-Net is shared.
+Analysis exposes the fixed both-detector consensus pipeline. Developer training
+remains separate: StarDist 3D proposals, center/box detection, the selectable
+contour U-Nets and the signal-center U-Net support that workflow.
 Training uses explicit new data and output paths. Archived metadata and annotations
 are no longer bundled.
 
@@ -21,7 +21,6 @@ workers. Run each retained command with `--help` for its required data/index fil
 
 ```sh
 python -m fish_viewer.neural /data/scans --audit-only --output /data/cell-audit --evidence-only
-python scripts/finetune_stardist2d.py --help
 python -m fish_viewer.proposals --help
 python -m fish_viewer.refinement --help
 python scripts/build_signal_centers.py --help
@@ -29,9 +28,13 @@ python scripts/train_signal_centers.py --help
 python scripts/evaluate_signal_centers.py --help
 ```
 
-The StarDist 2D fine-tuner recreates a reproducible official pretrained cache when
-needed, preserves the source license, and writes preprocessing/acceptance/linking
-recipes. The removed preprocessed 3D checkpoint is not required.
+The newly bundled contour checkpoints are documented in the
+[training/comparison report](../reports/contour-training-20261104/README.md).
+Each completed run added 20 epochs, with two seeds per plain crop size. Shared
+training/inference preprocessing and initial-checkpoint validation are consistent;
+both selection modes retain epoch zero when no qualifying epoch improves it.
+The initial checkpoint is actually loaded before scoring and training. New 96³
+and 64³ model manifests retain the exact recipe and checkpoint identity.
 
 Signal data-building accepts either a fresh supervision audit or a completed cell
 prediction report plus its collection audit. Physical resampling, ambiguous-channel

@@ -12,10 +12,9 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from fish_viewer.analysis.controller import check_models, default_models
+from fish_viewer.analysis.controller import BUNDLED_MODELS, check_models, default_models
 
-BUNDLES = ('cells-sensitive', 'proposals', 'refinement-bias-candidate',
-           'signals-center-unet', 'cells-stardist2d')
+BUNDLES = BUNDLED_MODELS
 
 
 def signal_control_command(model, output):
@@ -38,8 +37,6 @@ def main():
                     raise ValueError(f'Checkpoint checksum mismatch: {label}/{name}')
     cells, signals = default_models()
     check_models(cells, signals)
-    sliced = ROOT / 'models/cells-stardist2d'
-    check_models(sliced, signals)
     from fish_viewer.neural.engine import runtime
     tf, StarDist3D, _, info = runtime('cpu')
     shapes = {}
@@ -49,23 +46,18 @@ def main():
     outputs = detector.predict(np.zeros((16,) * 3, np.float32), axes='ZYX', verbose=0)
     assert all(np.isfinite(value).all() for value in outputs)
     shapes[cells.name] = [list(value.shape) for value in outputs]
-    from stardist.models import StarDist2D
-    manifest = json.loads((sliced / 'fish-model.json').read_text())
-    detector2d = StarDist2D(None, name=sliced.name, basedir=str(sliced.parent))
-    detector2d.load_weights(sliced / manifest['checkpoint'])
-    outputs = detector2d.keras_model.predict_on_batch(np.zeros((1, 32, 32, 1), np.float32))
-    assert all(np.isfinite(value).all() for value in outputs)
-    shapes[sliced.name] = [list(value.shape) for value in outputs]
     from fish_viewer.refinement.config import RefinementConfig, read_model
     from fish_viewer.refinement.network import network
-    folder = ROOT / 'models/refinement-bias-candidate'
-    manifest = read_model(folder)
-    config = RefinementConfig(**manifest['config'])
-    model = network(tf, config)
-    model.load_weights(folder / manifest['checkpoint'])
-    outputs = model(np.zeros((1,) + (config.patch_size,) * 3 + (2,), np.float32), training=False).numpy()
-    assert np.isfinite(outputs).all()
-    shapes[folder.name] = list(outputs.shape)
+    for name in ('contours-96', 'contours-64'):
+        folder = ROOT / 'models' / name
+        manifest = read_model(folder)
+        config = RefinementConfig(**manifest['config'])
+        tf.keras.backend.clear_session()
+        model = network(tf, config)
+        model.load_weights(folder / manifest['checkpoint'])
+        outputs = model(np.zeros((1,) + (config.patch_size,) * 3 + (2,), np.float32), training=False).numpy()
+        assert np.isfinite(outputs).all()
+        shapes[folder.name] = list(outputs.shape)
     from fish_viewer.proposals.config import ProposalConfig, read_model
     from fish_viewer.proposals.network import network
     folder = ROOT / 'models/proposals'

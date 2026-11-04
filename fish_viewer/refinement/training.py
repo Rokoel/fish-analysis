@@ -14,7 +14,9 @@ from ..pipeline.runner import _json
 from ..pipeline.segmentation import Cancelled, checkpoint
 from ..run_paths import new_run_directory
 from .data import cache_collection, cache_patches, seed_image
+from .config import RefinementConfig, read_model
 from .network import network, loss
+from .preprocessing import augment_membrane, preprocess_membrane
 
 
 def charts(directory, report):
@@ -92,6 +94,12 @@ def batch(arrays, records, indices, config, rng, augment=False):
             x=np.array(x,copy=True)
             x[...,0]=np.clip(x[...,0]*rng.uniform(.75,1.25)+rng.uniform(-.03,.03)
                              +rng.normal(0,.008,x.shape[:3]),0,1)
+            if config.microscopy_augmentation:
+                step_um = record['patch_spacing_um'] if index >= 0 else .2
+                x[...,0] = augment_membrane(x[...,0],step_um,config,rng)
+        step_um = record['patch_spacing_um'] if index >= 0 else .2
+        x = np.array(x,copy=True)
+        x[...,0] = preprocess_membrane(x[...,0],step_um,config)
         if config.surface_loss_weight:
             # Derive distances after spatial augmentation, in physical units.
             mask = y[...,0] > .5
@@ -120,7 +128,7 @@ def validation_boundaries(probability, target, selected, records, config):
             da=ndi.distance_transform_edt(~a,sampling=spacing)
             db=ndi.distance_transform_edt(~b,sampling=spacing)
             boundary=float(np.mean(np.r_[db[a],da[b]]))
-        else:boundary=spacing*config.patch_size
+        else:boundary=spacing*max(truth.shape)
         bias=100*(found.sum()-truth.sum())/max(1,truth.sum())
         values.append((boundary,float(abs(bias)),float(bias)))
     return values
@@ -149,6 +157,8 @@ def train(audit, cache, patches, output, config, device='auto', emit=lambda e:No
         val_ids=[r['index'] for r in records if r['split']=='validation']
         if not train_ids or not val_ids:
             raise ValueError('Both independent training and validation targets are required.')
+        if config.checkpoint_metric == 'boundary' and not any(records[i].get('validation_checkpoint_score',True) for i in val_ids):
+            raise ValueError('Boundary checkpoint selection requires scored validation targets.')
         negative_count=int(np.ceil(len(train_ids)*config.negative_fraction))
         report['samples']=dict(training_cells=len(train_ids),validation_cells=len(val_ids),
                                validation_boundary_scored_cells=sum(records[i].get('validation_checkpoint_score',True) for i in val_ids),
@@ -161,16 +171,17 @@ def train(audit, cache, patches, output, config, device='auto', emit=lambda e:No
         notify(dict(kind='progress',phase='Initializing 3D U-Net',current=0,total=1))
         tf,_,_,info=runtime(device,config.seed);report['runtime']=info
         # Mixed precision reduces memory/compute; logits and loss remain float32.
-        if info['device']=='GPU':
-            tf.keras.mixed_precision.set_global_policy('mixed_float16')
+        tf.keras.mixed_precision.set_global_policy('mixed_float16' if info['device']=='GPU' else 'float32')
         model=network(tf,config)
         if initial_model:
-            from .config import read_model
             initial=read_model(initial_model)
+            initial_config=RefinementConfig(**initial['config'])
             for key in ('filters','depth'):
-                if initial['config'][key]!=getattr(config,key):raise ValueError('Initial boundary architecture differs: '+key)
+                if getattr(initial_config,key)!=getattr(config,key):raise ValueError('Initial boundary architecture differs: '+key)
             report['initial_model']=str(Path(initial_model).resolve())
             report['initial_checkpoint_sha256']=hashlib.sha256((Path(initial_model)/initial['checkpoint']).read_bytes()).hexdigest()
+            # Convolutional weights are independent of crop size (64 -> 96 is OK).
+            model.load_weights(Path(initial_model)/initial['checkpoint'])
         optimizer=tf.keras.optimizers.Adam(config.learning_rate,clipnorm=5.)
         if info['device']=='GPU':
             optimizer=tf.keras.mixed_precision.LossScaleOptimizer(optimizer,initial_scale=128.)
@@ -186,10 +197,34 @@ def train(audit, cache, patches, output, config, device='auto', emit=lambda e:No
         def validation_step(x,y):
             logits=model(x,training=False)
             value,dice=loss(tf,y,logits,config)
-            if config.surface_loss_weight:
-                return value,dice,tf.math.sigmoid(logits)
-            return value,dice
+            return value,dice,tf.math.sigmoid(logits)
         rng=np.random.default_rng(config.seed);best=float('inf');stale=0
+        def evaluate_validation(phase, epoch=None):
+            values=[];counts=[];measurements=[]
+            total=int(np.ceil(len(val_ids)/config.batch_size))
+            for b,start_index in enumerate(range(0,len(val_ids),config.batch_size)):
+                checkpoint(cancel)
+                ids=val_ids[start_index:start_index+config.batch_size]
+                x,y=batch(arrays,records,ids,config,rng)
+                v,d,p=validation_step(x,y)
+                probability=p.numpy()
+                result=[float(v.numpy()),float(d.numpy())]
+                if not np.isfinite(result).all() or not np.isfinite(probability).all():
+                    raise ValueError('Non-finite boundary validation metrics.')
+                values.append(result);counts.append(len(ids))
+                measurements.extend(validation_boundaries(probability,y,ids,records,config))
+                if b%10==0 or b+1==total:
+                    event=dict(kind='progress',phase=phase,current=b+1,total=total,loss=result[0],dice=result[1])
+                    if epoch is not None:event.update(epoch=epoch,epochs=config.epochs)
+                    notify(event)
+            means=np.average(values,axis=0,weights=counts)
+            metrics=dict(loss=float(means[0]),dice=float(means[1]))
+            if measurements:
+                surface=np.mean(measurements,axis=0)
+                metrics.update(boundary_error_um=float(surface[0]),volume_mape=float(surface[1]),volume_bias_percent=float(surface[2]))
+            if not np.isfinite(list(metrics.values())).all():
+                raise ValueError('Non-finite boundary validation metrics.')
+            return metrics
         manifest=dict(version=1,engine='seeded-unet3d',config=asdict(config),checkpoint='best.weights.h5',
                       input='Normalized membrane + physical Gaussian seed; target-conditioned full 3D mask.',
                       output='Target-cell logits; no star-convex, sphericity or elongation constraint.',
@@ -197,74 +232,66 @@ def train(audit, cache, patches, output, config, device='auto', emit=lambda e:No
                       audit_sha256=hashlib.sha256(Path(audit).read_bytes()).hexdigest())
         if initial_model:
             manifest.update(initial_model=report['initial_model'],initial_checkpoint_sha256=report['initial_checkpoint_sha256'])
-        manifest['checkpoint_selection']='Validation physical boundary error with non-increasing volume MAPE; epoch zero retained if no improvement' if config.surface_loss_weight else 'Validation loss'
+        boundary_selection=config.checkpoint_metric=='boundary'
+        manifest['checkpoint_selection']=('Validation physical boundary error with volume MAPE no worse than initial checkpoint; epoch zero retained if no improvement'
+                                          if boundary_selection else 'Validation loss; epoch zero retained if no improvement')
+        manifest['validation_policy']='Unaugmented crops with the saved preprocessing and threshold; identical initial/per-epoch evaluation. Boundary metrics on explicitly scored validation identities.'
         _json(model_dir/'refinement-model.json',manifest)
         best_surface=float('inf')
-        if initial_model and config.surface_loss_weight:
-            measurements=[];initial_losses=[]
-            for start_index in range(0,len(val_ids),config.batch_size):
-                checkpoint(cancel)
-                ids=val_ids[start_index:start_index+config.batch_size]
-                x,y=batch(arrays,records,ids,config,rng)
-                v,d,p=validation_step(x,y)
-                measurements.extend(validation_boundaries(p.numpy(),y,ids,records,config))
-                initial_losses.extend([float(v.numpy())]*len(ids))
-                if start_index%100==0:
-                    notify(dict(kind='progress',phase='Scoring initial contour boundary',current=start_index,total=len(val_ids)))
-            initial_mean=np.mean(measurements,axis=0)
-            report['initial_validation']=dict(boundary_error_um=float(initial_mean[0]),volume_mape=float(initial_mean[1]),volume_bias_percent=float(initial_mean[2]),loss=float(np.mean(initial_losses)))
-            best_surface=float(initial_mean[0]);best=report['initial_validation']['loss']
+        if initial_model:
+            report['initial_validation']=evaluate_validation('Scoring initial contour checkpoint')
+            best_surface=report['initial_validation'].get('boundary_error_um',float('inf'))
+            best=report['initial_validation']['loss']
             report['best_epoch']=0
             model.save_weights(model_dir/'best.weights.h5')
-            manifest.update(best_epoch=0,validation_loss=best,validation_boundary_error_um=best_surface)
+            manifest.update(best_epoch=0,validation_loss=best)
+            if 'boundary_error_um' in report['initial_validation']:
+                manifest['validation_boundary_error_um']=best_surface
             _json(model_dir/'refinement-model.json',manifest)
         for epoch in range(1,config.epochs+1):
             checkpoint(cancel)
             row=dict(epoch=epoch)
-            for split, ids, step in [('training',rng.permutation(train_ids+[-1]*negative_count),train_step),
-                                     ('validation',np.asarray(val_ids),validation_step)]:
-                values=[];counts=[];surface_values=[];total=int(np.ceil(len(ids)/config.batch_size))
-                for b,start_index in enumerate(range(0,len(ids),config.batch_size)):
-                    checkpoint(cancel)
-                    selected=ids[start_index:start_index+config.batch_size]
-                    x,y=batch(arrays,records,selected,config,rng,augment=split=='training')
-                    outputs=step(x,y)
-                    result=[float(v.numpy()) for v in outputs[:2]]
-                    if split=='validation' and config.surface_loss_weight:
-                        surface_values.extend(validation_boundaries(outputs[2].numpy(),y,selected,records,config))
-                    if not np.isfinite(result).all():
-                        raise ValueError('Non-finite boundary training metrics.')
-                    values.append(result);counts.append(len(selected))
-                    if b%10==0 or b+1==total:
-                        notify(dict(kind='progress',phase=f'{split.title()} boundary network',epoch=epoch,
-                                    epochs=config.epochs,current=b+1,total=total,loss=result[0],dice=result[1]))
-                means=np.average(values,axis=0,weights=counts)
-                row[split]=dict(loss=float(means[0]),dice=float(means[1]))
-                if surface_values:
-                    metrics=np.mean(surface_values,axis=0)
-                    row[split].update(boundary_error_um=float(metrics[0]),volume_mape=float(metrics[1]),volume_bias_percent=float(metrics[2]))
+            ids=rng.permutation(train_ids+[-1]*negative_count)
+            values=[];counts=[];total=int(np.ceil(len(ids)/config.batch_size))
+            for b,start_index in enumerate(range(0,len(ids),config.batch_size)):
+                checkpoint(cancel)
+                selected=ids[start_index:start_index+config.batch_size]
+                x,y=batch(arrays,records,selected,config,rng,augment=True)
+                result=[float(v.numpy()) for v in train_step(x,y)]
+                if not np.isfinite(result).all():
+                    raise ValueError('Non-finite boundary training metrics.')
+                values.append(result);counts.append(len(selected))
+                if b%10==0 or b+1==total:
+                    notify(dict(kind='progress',phase='Training boundary network',epoch=epoch,
+                                epochs=config.epochs,current=b+1,total=total,loss=result[0],dice=result[1]))
+            means=np.average(values,axis=0,weights=counts)
+            row['training']=dict(loss=float(means[0]),dice=float(means[1]))
+            row['validation']=evaluate_validation('Validation boundary network',epoch)
             row['elapsed_s']=time.monotonic()-start
             report['epochs'].append(row)
-            if config.surface_loss_weight:
+            if boundary_selection:
                 improved=row['validation']['boundary_error_um']<best_surface-1e-5 and row['validation']['volume_mape']<=report.get('initial_validation',{}).get('volume_mape',float('inf'))
             else:improved=row['validation']['loss']<best-1e-4
             if improved:
                 best=row['validation']['loss'];stale=0
-                if config.surface_loss_weight:best_surface=row['validation']['boundary_error_um']
+                if boundary_selection:best_surface=row['validation']['boundary_error_um']
                 temporary=model_dir/'checkpoint.tmp.weights.h5'
                 model.save_weights(temporary);temporary.replace(model_dir/'best.weights.h5')
                 report['best_epoch']=epoch
                 manifest.update(best_epoch=epoch,validation_loss=best)
-                if config.surface_loss_weight:manifest['validation_boundary_error_um']=best_surface
+                if 'boundary_error_um' in row['validation']:
+                    manifest['validation_boundary_error_um']=row['validation']['boundary_error_um']
                 _json(model_dir/'refinement-model.json',manifest)
             else:
                 stale+=1
             charts(directory,report);_json(directory/'report.json',report)
             emit(dict(kind='epoch',**row,best_epoch=report['best_epoch']))
             if stale>=config.patience:
-                report['stop_reason']='Validation boundary agreement stopped improving.' if config.surface_loss_weight else 'Validation loss stopped improving.';break
+                report['stop_reason']='Validation boundary agreement stopped improving.' if boundary_selection else 'Validation loss stopped improving.';break
         report['status']='complete'
         report['checkpoint_sha256']=hashlib.sha256((model_dir/'best.weights.h5').read_bytes()).hexdigest()
+        manifest['checkpoint_sha256']=report['checkpoint_sha256']
+        _json(model_dir/'refinement-model.json',manifest)
         notify(dict(kind='progress',phase='Boundary training complete',current=len(report['epochs']),
                     total=len(report['epochs']),epoch=len(report['epochs']),epochs=config.epochs))
     except Cancelled:

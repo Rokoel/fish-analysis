@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [Analysis](fish-analysis.md)
 
-Both pipelines use `signals-center-unet`, a PyTorch 3D U-Net with signal channel,
+Consensus uses `signals-center-unet`, a PyTorch 3D U-Net with signal channel,
 membrane channel and target-cell mask inputs. Each cell/channel crop is resampled
 at the checkpoint's physical spacing. Learned heatmap peaks use subvoxel quadratic
 localization and calibrated physical suppression within the same cell/channel.

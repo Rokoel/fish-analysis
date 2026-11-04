@@ -10,7 +10,6 @@ from pathlib import Path
 WORKERS = frozenset(
     {
         "fish_viewer.neural",
-        "fish_viewer.neural.slice_inference",
         "fish_viewer.proposals",
         "fish_viewer.proposals.consensus",
         "fish_viewer.refinement",

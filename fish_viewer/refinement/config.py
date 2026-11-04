@@ -15,7 +15,7 @@ class RefinementConfig:
     boundary_band_um: float = .6
     boundary_weight: float = 5.
     learning_rate: float = .0003
-    batch_size: int = 2
+    batch_size: int = 1
     epochs: int = 60
     patience: int = 10
     negative_fraction: float = .15
@@ -31,12 +31,41 @@ class RefinementConfig:
     surface_distance_clip_um: float = 2.
     tversky_beta: float = .5
     residual_correction: bool = False
+    checkpoint_metric: str = 'boundary'
+    microscopy_augmentation: bool = False
+    illumination_strength: float = .35
+    membrane_contrast_range: float = .4
+    photon_count_min: float = 80.
+    photon_count_max: float = 800.
+    psf_lateral_um: float = .18
+    psf_axial_um: float = .55
+    preprocessing: str = 'none'
+    background_sigma_um: float = 3.
+    clahe_tile_um: float = 3.
+    clahe_clip_limit: float = .01
+    clahe_fraction: float = .35
     seed: int = 42
 
     def validate(self):
         for name, value in asdict(self).items():
-            if not math.isfinite(value):
+            if name not in ('preprocessing', 'checkpoint_metric') and not math.isfinite(value):
                 raise ValueError(f'{name} must be finite.')
+        if self.checkpoint_metric not in ('loss', 'boundary'):
+            raise ValueError('Invalid checkpoint metric.')
+        if self.preprocessing not in ('none', 'background', 'clahe'):
+            raise ValueError('Invalid membrane preprocessing.')
+        if type(self.microscopy_augmentation) is not bool:
+            raise ValueError('Invalid microscopy augmentation switch.')
+        if not 0 <= self.illumination_strength <= .8 or not 0 <= self.membrane_contrast_range <= .9:
+            raise ValueError('Invalid illumination or membrane contrast augmentation.')
+        if not 1 <= self.photon_count_min <= self.photon_count_max <= 1e6:
+            raise ValueError('Invalid effective photon counts.')
+        if not 0 <= self.psf_lateral_um <= self.psf_axial_um <= 2:
+            raise ValueError('Invalid anisotropic PSF augmentation.')
+        if not .5 <= self.background_sigma_um <= 10 or not .5 <= self.clahe_tile_um <= 10:
+            raise ValueError('Invalid physical preprocessing scale.')
+        if not 0 < self.clahe_clip_limit <= .1 or not 0 <= self.clahe_fraction <= 1:
+            raise ValueError('Invalid CLAHE settings.')
         for name, low, high in [('patch_size',32,128),('filters',4,32),('depth',2,4),
                                 ('epochs',1,1000),('patience',1,100),('batch_size',1,8),('seed',0,2**31-1)]:
             value = getattr(self, name)

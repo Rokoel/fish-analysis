@@ -2,7 +2,9 @@
 
 [Documentation](README.md) · [Models](models.md)
 
-Consensus is the default analysis pipeline. The sensitive StarDist 3D detector
+Consensus is the only analysis pipeline. Its name is fixed information; the
+**Contour model** dropdown selects **96³ (default)** or **64³ — longer-trained**.
+The sensitive StarDist 3D detector
 keeps its saved proposal thresholds. Its proposed cells are redrawn and checked
 by the selected contour U-Net. Independently, the center/box detector supplies
 padded crops to the same contour U-Net. One-to-one whole-object IoU matching at
@@ -15,7 +17,8 @@ survive a stricter roundness gate retain their geometry. Consensus and sphericit
 can discard valid cells; sparse manual annotations do not determine the precision
 of unmatched detections.
 
-See the [latest roundness evaluation](../reports/consensus-roundness-20261028/README.md).
-Historical alternatives were consolidated into the local combined report and their
-execution paths/models removed. The current pipeline requires four component
-bundles listed in [models](models.md).
+See the [new contour training comparison](../reports/contour-training-20261104/README.md).
+The [historical roundness evaluation](../reports/consensus-roundness-20261028/README.md)
+used the retired contour checkpoint and is not a new-model measurement. Four
+networks execute for either contour choice; five bundles distribute both choices,
+as listed in [models](models.md).

@@ -9,11 +9,10 @@ Cancellation preserves completed outputs.
 
 ```mermaid
 flowchart TD
-    A[Read original scan and scene] --> B{Pipeline}
-    B --> C[Two-detector consensus and contour U-Net]
-    B --> D[Fine-tuned StarDist 2D and section linking]
+    A[Read original scan and scene] --> B[Both-detector consensus]
+    M[Contour dropdown: 96³ or longer-trained 64³] --> C[Shared contour U-Net for both detectors]
+    B --> C
     C --> E[Physical roundness gate]
-    D --> E
     E --> F[Signal-center U-Net]
     F --> G[Retain cells with signals]
     G --> H[Volumes, border distances, cross-channel pairs]
@@ -24,7 +23,7 @@ flowchart TD
 | Module | Responsibility |
 | --- | --- |
 | `reader`, `scenes`, `embedded`, `annotation_state` | Original pixels/calibration, native scenes, identities and provenance |
-| `analysis` | Two-pipeline orchestration, selection, contour editing and current-run ownership |
+| `analysis` | Fixed consensus orchestration, contour-model selection, editing and current-run ownership |
 | `neural`, `proposals`, `refinement` | StarDist, center/box detection and supported contour network |
 | `spots`, `signals` | U-Net centers, sparse supervision, physical suppression and saved-result compatibility |
 | `pipeline` | Shared preparation, mask geometry, evaluation and prediction archives |

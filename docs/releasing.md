@@ -9,8 +9,10 @@ No FISH scans or local training caches are required or distributed.
 The release contains `FISH-Analysis-v<version>-windows-x64.exe` and
 `FISH-Analysis-v<version>-linux-x64.AppImage`. Each file contains the GUI,
 Python, Qt/VTK, Imaris export templates and
-the five component model bundles for the two supported pipelines. Both-detector consensus and the signal-center
-3D U-Net remain the defaults. Linux downloads its verified neural runtime automatically on first launch, with a progress window.
+the five component model bundles: two detectors, two selectable contour U-Nets and
+one signal U-Net. Both-detector consensus is fixed; 96³ contours are selected by
+default, with longer-trained 64³ available in the dropdown. Linux downloads its
+verified neural runtime automatically on first launch, with a progress window.
 Windows includes the Visual Studio x64 redistributable DLLs app-locally, including
 `msvcp140.dll`, `vcruntime140.dll` and `vcruntime140_1.dll`; users do not need the
 separate runtime installer. Build manifests record dependency versions and model
@@ -66,7 +68,8 @@ separate processes and fails if GPU mode cannot be used. `--device cpu` checks C
    checkpoints and signal U-Net empty-signal controls, then runs the full default
    consensus pipeline on synthetic Imaris data. A non-empty contour/signal case
    checks volumes, A/B distances, Imaris round-trip and single-sheet Excel export.
-6. Only after both platforms pass are the binaries and checksums published.
+6. Only after both platforms pass are binaries, checksums and the training-comparison
+   archive published. The archive includes `reports/contour-training-20261104/`.
 
 For a trial build, use **Actions → Build and release FISH Analysis → Run workflow**
 on the selected branch, enter its version label, and leave **publish** disabled.
@@ -117,7 +120,7 @@ Use `--device cpu` to test without an NVIDIA GPU.
 
 ## Source bundle scope
 
-Only consensus and fine-tuned StarDist 2D models and their dependencies are staged.
+Only consensus component models, both contour choices and their dependencies are staged.
 The local `reports/combined/` archive is excluded from Git and source/release bundles.
-The two current evaluation report bundles remain available. Original scans, archived
+The new contour-training report and clearly historical roundness report are included. Original scans, archived
 training data, virtual environments, logs and scratch files are not distributed.

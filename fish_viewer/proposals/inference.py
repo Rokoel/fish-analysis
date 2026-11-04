@@ -23,6 +23,7 @@ from ..refinement.config import RefinementConfig,read_model as read_boundary_mod
 from ..refinement.data import coordinates,prepare_membrane,seed_image
 from ..refinement.inference import seeded_component,surface_evidence
 from ..refinement.network import network as boundary_network
+from ..refinement.preprocessing import preprocess_membrane
 from .config import ProposalConfig,read_model
 from .network import network
 
@@ -100,7 +101,7 @@ def contour_proposals(prepared,proposals,model,config,emit=lambda e:None,cancel=
         coords=coordinates(center,width,spacing,config.patch_size)
         sample=ndi.map_coordinates(prepared.image,coords,order=1,mode='constant',cval=0,prefilter=False)
         seed_patch=(seed-center)*spacing/step+(config.patch_size-1)/2
-        inputs=np.stack([sample,seed_image(seed_patch,step,config)],axis=-1)[None]
+        inputs=np.stack([preprocess_membrane(sample,step,config),seed_image(seed_patch,step,config)],axis=-1)[None]
         logits=np.asarray(model(inputs,training=False))[0,...,0]
         if not np.isfinite(logits).all():raise ValueError('Non-finite crop contour predictions.')
         probability=1/(1+np.exp(-np.clip(logits,-60,60)))

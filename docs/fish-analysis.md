@@ -25,22 +25,25 @@ runtime and platform details.
 2. Preview each scan. Open **Channels…** to choose its cell channel and one or more
    signal channels. Choices persist per file. **Check channels** prompts review
    when metadata does not unambiguously identify the membrane stain.
-3. Choose an output folder, pipeline and device under **Pipeline and settings**.
+3. Choose an output folder. Under **Analysis settings**, select a contour model
+   and device. **Both-detector consensus** is the fixed pipeline.
 4. Click **Analyze selected**. Scans run sequentially. Cancel preserves finished
    results; **Select unfinished scans** prepares pending, failed and cancelled scans
    for retry. A failed scan retains its error and the queue continues.
 
-The processing summary shows the selected pipeline, device and channel roles.
-There are exactly two choices:
+The processing summary shows consensus, the contour model, device and channel roles.
+The **Contour model** dropdown has exactly two choices:
 
-| Pipeline | Behavior |
+| Contour model | Behavior |
 | --- | --- |
-| **Both-detector consensus (default)** | Sensitive StarDist 3D proposals are redrawn by the contour U-Net. A separate center/box detector produces contours with the same U-Net. One-to-one overlap at IoU ≥0.5 retains whole redrawn StarDist contours detected by both approaches. |
-| **Fine-tuned StarDist 2D** | Membrane-preprocessed XY images produce polygons which are linked between adjacent sections into 3D cells. |
+| **96³ (default)** | Newly trained U-Net samples each physical target crop more finely. |
+| **64³ — longer-trained** | Newly trained U-Net uses fewer voxels and less computation. |
 
-Both use the signal-center 3D U-Net. Saved retired pipeline selections migrate to
-consensus. Component checkpoints are fixed; Analysis has no training/model-picker
-controls. Training remains in the separate developer tools.
+The same chosen U-Net redraws StarDist proposals and contours the independent
+center/box detector's proposals. One-to-one IoU ≥0.5 keeps whole redrawn StarDist
+contours supported by both detectors. A common signal-center U-Net follows.
+Saved retired pipeline preferences migrate to consensus; contour preferences are
+remembered. Analysis performs inference only. See the [model comparison](../reports/contour-training-20261104/README.md).
 
 **Minimum roundness** defaults to **82%**, with a UI range of **75–100%**.
 It is calibrated 3D sphericity `π^(1/3) (6V)^(2/3) / A` on the voxel mask.

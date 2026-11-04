@@ -5,12 +5,12 @@ review and edit their annotations, and measure physical 3D cell volumes,
 signal-to-border distances and distances between nearby signals of different colors.
 Original scans and annotations are opened read-only.
 
-**[Download v0.9.2](https://github.com/Rokoel/fish-analysis/releases/tag/v0.9.2)** ·
+**[Download v0.10.0](https://github.com/Rokoel/fish-analysis/releases/tag/v0.10.0)** ·
 **[Analysis guide](docs/fish-analysis.md)** · **[Documentation](docs/README.md)** ·
 **[Models and evaluation](docs/models.md)**
 
 ![FISH Analysis reviewing consensus cell contours on an original microscopy scan](docs/images/analysis.png)
-*A completed both-detector consensus analysis opened in the app.*
+*Both-detector consensus with a choice of bundled contour models.*
 
 ## Why this instead of Imaris?
 
@@ -28,36 +28,39 @@ its verified neural runtime on first launch. See [installation and runtime detai
 
 1. Add an IMS scan, an IMX scene with its image, or a folder of scans.
 2. Check the cell channel and select the signal channels.
-3. Choose an output folder and run **Both-detector consensus**, the default pipeline.
+3. Choose an output folder and, under **Analysis settings**, a contour model:
+   **96³** (default) or **64³ — longer-trained**. Run **Both-detector consensus**.
 4. Review cells, signals and measurements. Export creates exactly two files:
    a standalone annotated **IMS** image and an **Excel workbook**.
 
-The other supported pipeline is **Fine-tuned StarDist 2D**. Both pipelines use the
-same signal-center U-Net. Minimum roundness defaults to **82%**, with a selectable
+Both-detector consensus is the only pipeline. Both detectors use the selected
+contour U-Net, followed by the signal-center U-Net. Roundness defaults to **82%**, with a selectable
 range of **75–100%**. A higher value rejects irregular cells; it leaves surviving
 contours unchanged.
 
-## Consensus results at 82% roundness
+## Newly bundled contour models
 
-The [roundness evaluation](reports/consensus-roundness-20261028/README.md) processed
-**71 historical test scans** with frozen checkpoints and reviewed cell channels:
+The [training and comparison report](reports/contour-training-20261104/README.md)
+records five completed fine-tuning runs, including two seeds for each plain crop
+size. Each run added 20 epochs. Both bundled checkpoints selected seed 42, epoch 19
+using validation data. On **508 complete manual test cells**:
 
-| Result | At 82% roundness |
-| --- | ---: |
-| Cells passing roundness, before signal filtering | 3,101 |
-| Retained cells containing signals | 1,031 |
-| Detected signals in retained cells | 1,063 |
-| Complete manual cells matched after signal filtering | 182 / 508 |
-| Mean absolute volume error, relative to manual volume | 5.56% across 182 matched cells |
-| Mean absolute signal-to-border distance error | 0.115 µm across 166 matched signals |
-| Median cell overlap with manual contours (IoU) | 0.880 |
+| Contour checkpoint | Surface error ↓ | Volume MAPE ↓ | Mean IoU ↑ |
+| --- | ---: | ---: | ---: |
+| Previous selected 64³ | 0.1130 µm | 4.52% | 0.8619 |
+| Newly bundled 64³ | **0.1080 µm** | **4.18%** | **0.8665** |
+| Newly bundled 96³ (default) | 0.1096 µm | 4.26% | 0.8652 |
 
-Volume and distance errors exclude cut manual cells and are conditional on matches;
-unmatched detections have incomplete manual labels and do not establish overall
-precision. The test fold was previously used in exploratory comparisons, so this
-is not independent validation of the chosen threshold. See the full report for
-all five roundness values, error tails and acquisition-bootstrap intervals, or the
-[separate StarDist 2D report](reports/stardist2d/README.md).
+Both new models improved over the previous checkpoint and matched all 508 targets
+at IoU ≥0.5. Longer-trained 64³ scored slightly better on this cohort; the direct
+96³–64³ acquisition-bootstrap intervals include zero. 96³ is the chosen default,
+not a claim of proven superiority. It samples the same physical crop more finely
+and uses more computation.
+
+This test isolates contour drawing with manual boxes/seeds; it does not measure
+full-consensus recall, field precision or signal-distance accuracy. The folds were
+used previously, so results remain exploratory. The [historical roundness report](reports/consensus-roundness-20261028/README.md)
+used the retired contour checkpoint and does not describe the new models.
 
 ## Review, edit and measure
 
@@ -86,14 +89,17 @@ See [editing and measurements](docs/fish-analysis.md) and
 Use Python 3.12. On Linux, run `./setup-analysis.sh` then `./run-analysis.sh`;
 on Windows, run `setup-analysis.bat` then `run-analysis.bat`.
 Setup installs the separate PyTorch signal runtime. The repository includes the
-five component model bundles required by the two analysis pipelines.
+five component bundles: two detectors, two selectable contour U-Nets and one
+signal-center U-Net, supporting the single consensus pipeline.
 
 `./run-viewer.sh` opens the general Viewer and developer training tools.
 `./run-annotator.sh --audit /absolute/path/audit.json --output /absolute/path/annotations`
 opens the training annotator. Future training and evaluation require explicit data
 paths; historical training metadata and painted annotations are no longer bundled.
 The combined historical report stays local and is excluded from Git and releases;
-the latest consensus roundness and StarDist reports remain public.
+the new contour training/comparison report is included in the release. The older
+roundness report retains its historical model identity. Retired StarDist 2D
+results remain in the previous release history.
 
 Run core tests with `python -m pytest -p no:cacheprovider -m "not neural and not gui and not integration"`.
 GUI tests require Qt/VTK or `QT_QPA_PLATFORM=offscreen`; neural tests require the

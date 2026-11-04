@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "created_utc": "2026-11-04T14:38:10Z",
+  "reason": "User stopped and removed the remaining runs and selected the 96-cubed approach before final test evaluation.",
+  "selected_recipe": "sampling96",
+  "cancelled_runs": [
+    "clahe64-seed-123",
+    "control64-seed-2026",
+    "sampling96-seed-2026",
+    "clahe64-seed-2026"
+  ],
+  "completed_runs": [
+    "control64-seed-42",
+    "sampling96-seed-42",
+    "clahe64-seed-42",
+    "control64-seed-123",
+    "sampling96-seed-123"
+  ],
+  "partial_run_removed": "clahe64-seed-123",
+  "completed_results_preserved": true,
+  "original_protocol": "protocol.json"
+}

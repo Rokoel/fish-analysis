@@ -19,6 +19,7 @@ from ..signals.engine import image_fingerprint
 from .config import RefinementConfig, read_model
 from .data import coordinates, crop_geometry, prepare_membrane, seed_center, seed_image
 from .network import network
+from .preprocessing import preprocess_membrane
 
 
 def resample_labels(labels, old_spacing, old_origin, shape, spacing, origin):
@@ -73,7 +74,7 @@ def refine(labels, prepared, model, config, emit=lambda e:None, cancel=None, evi
         coords=coordinates(center,width,spacing,config.patch_size)
         sample=ndi.map_coordinates(prepared.image,coords,order=1,mode='constant',cval=0,prefilter=False)
         seed_patch=(seed-center)*spacing/step+(config.patch_size-1)/2
-        inputs=np.stack([sample,seed_image(seed_patch,step,config)],axis=-1)[None]
+        inputs=np.stack([preprocess_membrane(sample,step,config),seed_image(seed_patch,step,config)],axis=-1)[None]
         logits=np.asarray(model(inputs,training=False))[0,...,0]
         if not np.isfinite(logits).all():
             raise ValueError('Non-finite boundary predictions.')

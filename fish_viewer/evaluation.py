@@ -35,8 +35,8 @@ def frozen_models():
  for kind,folder,file in [('center_box_detector',default_proposal_model(),'proposal-model.json'),
                           ('stardist_detector',sensitive_stardist_model(),'fish-model.json'),
                           ('contours',default_refinement_model(),'refinement-model.json'),
-                          ('signals',default_models()[1],'signal-model.json'),
-                          ('stardist2d',default_models()[0].parent/'cells-stardist2d','fish-model.json')]:
+                          ('contours64',default_refinement_model('64'),'refinement-model.json'),
+                          ('signals',default_models()[1],'signal-model.json')]:
   folder=Path(folder);manifest=json.loads((folder/file).read_text())
   models[kind]=dict(directory=str(folder.resolve()),manifest=manifest,manifest_sha256=sha(folder/file),checkpoint_sha256=sha(folder/manifest['checkpoint']))
  return models

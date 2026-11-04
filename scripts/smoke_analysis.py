@@ -20,7 +20,7 @@ parser.add_argument('--package-root', type=Path, help='Verify the distributed so
 parser.add_argument('--boundary-model', type=Path, help='Exercise the optional seeded 3D U-Net stage')
 parser.add_argument('--cell-model', type=Path, help='Select StarDist or the center-and-box detector')
 parser.add_argument('--signal-model', type=Path, help='Exercise a selected signal checkpoint')
-parser.add_argument('--pipeline', choices=['consensus','stardist2d'], default='consensus')
+parser.add_argument('--contour-model', choices=['96','64'], default='96')
 parser.add_argument('--output', type=Path, required=True)
 parser.add_argument('--roundness', type=float, default=.82)
 parser.add_argument('--cell-channel',type=int)
@@ -76,8 +76,7 @@ def exercise():
         original_hash = digest(args.image)
         window.output.setText(str((output / 'runs').resolve()))
         window.device.setCurrentText(args.device)
-        if args.pipeline:
-            window.pipeline.setCurrentIndex(window.pipeline.findData(args.pipeline))
+        window.contour_model.setCurrentIndex(window.contour_model.findData(args.contour_model))
         window.roundness.setValue(round(args.roundness*100))
         if args.boundary_model:
             window.boundary_model.setText(str(args.boundary_model.resolve()))

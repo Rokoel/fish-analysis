@@ -27,6 +27,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='fish-docs-') as temporary:
         settings = QtCore.QSettings(str(Path(temporary) / 'settings.ini'), QtCore.QSettings.Format.IniFormat)
         window = AnalysisWindow(off_screen=True, settings=settings)
+        window.options_button.setChecked(True)
         window.resize(1600, 1000)
         window.output.setText(str(Path(temporary) / 'results'))
         errors = []

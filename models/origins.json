@@ -15,11 +15,18 @@
       "proposal-model.json": "c2036c32e6a587503ddebcf73838cec9361d1839c6dbf004c7680c5a985184de"
     }
   },
-  "refinement-bias-candidate": {
-    "source": "/home/rokoel/Documents/cell-nn/artifacts/contour-bias-20261009/surface-loss/boundary-train-20261009-025207-067847-of868_50/model",
+  "contours-96": {
+    "source": "contour-long-training-20261104/sampling96-seed-42",
     "sha256": {
-      "best.weights.h5": "56eb05c07cc08c2cdedaad27aa0f75774dc3d114f166ea3e2040844b617731c2",
-      "refinement-model.json": "3620a857e2f7d650b70ba2136813db933f0b547c399b63d2c87ccf36bb398b8e"
+      "best.weights.h5": "1b10fe8d750e2c57e100e2dae249e0a298de0072bcc9a2339be93126d3d0283b",
+      "refinement-model.json": "6b9cc934f71bee8273b3bb9937b2efbb23081d5a0fdd6fad13da26ea653d9ba4"
+    }
+  },
+  "contours-64": {
+    "source": "contour-long-training-20261104/control64-seed-42",
+    "sha256": {
+      "best.weights.h5": "90de8235ba531c46ee9d8034a31f0ccc60f09a6f72ee9ab4b0b207b98a343617",
+      "refinement-model.json": "2a8d0f1fd7f9e52686011dc93fda84b6e12f0a706df7a323c2ef08b2ec9b10f6"
     }
   },
   "signals-center-unet": {
@@ -27,16 +34,6 @@
     "sha256": {
       "best.pt": "6584d38a03ac6655c0725ad4550ff12930c33b62c36958ad92ac9f5e0224eae3",
       "signal-model.json": "1509a66a65028785322e32f4fbbe7ca6d50fb40e54564c7e60cd752adfeae05d"
-    }
-  },
-  "cells-stardist2d": {
-    "source": "/home/rokoel/Documents/cell-nn/models/cells-stardist2d",
-    "sha256": {
-      "best.weights.h5": "6964f55d14ddebea79944aad5dc3f7582f037bfb97258dfaefe569c46ab8f694",
-      "thresholds.json": "11c8ff90c6095d442d6b4007172582b6b16ddf2ae2bbf0c2ef1bde7e5b36ec1f",
-      "PRETRAINED-LICENSE.txt": "d413591c8a0507f0f190c5e83addd7e147b25e064ce439d2d18bc80d865cb50f",
-      "config.json": "8d86556166fb5ac9e85cee8b234aafa40d24c47d26494c88fde8612af8f52da6",
-      "fish-model.json": "4d767bb545aaa3baf575fa89542372a90d11878a8540a27ab19cd52271ea4043"
     }
   }
 }

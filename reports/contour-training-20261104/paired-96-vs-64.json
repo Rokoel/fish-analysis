@@ -1,0 +1,26 @@
+{
+  "boundary_error_um": {
+    "candidate_minus_baseline": 0.001601846266887591,
+    "ci95_acquisition_bootstrap": [
+      -0.0008746950904965014,
+      0.004431578406555965
+    ],
+    "groups": 19
+  },
+  "volume_mape": {
+    "candidate_minus_baseline": 0.07834650400088661,
+    "ci95_acquisition_bootstrap": [
+      -0.17132845175638625,
+      0.2524238680189378
+    ],
+    "groups": 19
+  },
+  "iou": {
+    "candidate_minus_baseline": -0.00126166567716028,
+    "ci95_acquisition_bootstrap": [
+      -0.003776705054080079,
+      0.0009309964964039013
+    ],
+    "groups": 19
+  }
+}

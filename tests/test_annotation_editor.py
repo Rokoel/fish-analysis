@@ -233,8 +233,8 @@ def test_editor_ui_manual_import_selection_edit_undo_and_hide(qapp, ims_file, tm
     )
     try:
         window.set_dataset(doc.dataset, None)
-        assert window.pipeline.currentData() == "consensus"
-        assert window.pipeline.count() == 2
+        assert window.pipeline_label.text() == "Both-detector consensus"
+        assert window.contour_model.currentData() == '96'
         editor = window.editor
         assert editor.tree.topLevelItem(0).childCount() == 2
         item = editor.tree.topLevelItem(0).child(0)

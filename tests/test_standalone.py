@@ -38,7 +38,7 @@ def test_worker_dispatch_preserves_arguments_and_exit(monkeypatch):
     ]
 
 
-@pytest.mark.parametrize("args", [["-m"], ["-m", "os"], ["-m", "pip"]])
+@pytest.mark.parametrize("args", [["-m"], ["-m", "os"], ["-m", "pip"], ["-m", "fish_viewer.neural.slice_inference"]])
 def test_arbitrary_python_modules_cannot_be_launched(monkeypatch, args):
     monkeypatch.setattr(sys, "argv", ["FISH-Analysis", *args])
     with pytest.raises(SystemExit, match="Unsupported FISH worker"):

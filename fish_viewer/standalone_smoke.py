@@ -12,6 +12,7 @@ def main(arguments=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument('--device', choices=['cpu', 'gpu', 'auto'], default='cpu')
+    parser.add_argument('--contour-model', choices=['96', '64'], default='96')
     parser.add_argument('--scan', type=Path, help='Also run a real scan through the GUI queue and validate its exports')
     args = parser.parse_args(arguments)
     output = args.output.resolve()
@@ -72,7 +73,9 @@ def main(arguments=None):
     settings.setValue('device', 'gpu')
     window = AnalysisWindow(off_screen=True, settings=settings)
     try:
-        assert window.pipeline.currentData() == "consensus"
+        assert window.pipeline_label.text() == 'Both-detector consensus'
+        window.contour_model.setCurrentIndex(window.contour_model.findData(args.contour_model))
+        assert window.contour_model.currentData() == args.contour_model
         from .runtime_profile import packaged_profile
         profile = packaged_profile()
         if profile is not None:
@@ -94,7 +97,7 @@ def main(arguments=None):
             cells,
             signals,
             device=args.device,
-            refinement=default_refinement_model(),
+            refinement=default_refinement_model(args.contour_model),
             stardist_proposals=True,
             consensus_model=default_proposal_model(),
             roundness=0.82,

@@ -1,9 +1,0 @@
-{
-  "within_02_um_percent": 66.96428571428571,
-  "manual_median_distance_um": 0.5808261353443466,
-  "channel_counts": {
-    "1": 79,
-    "2": 33
-  },
-  "channel_metrics_note": "CSV channel is zero-based; channel_counts uses one-based image channel numbers. Indices across different acquisitions need not denote identical stains."
-}
