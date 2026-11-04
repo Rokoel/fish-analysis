@@ -5,7 +5,7 @@
 The separate annotator paints training-only crops from an explicit collection audit:
 
 ```sh
-./run-annotator.sh --audit /data/audit/audit.json --output /data/new-annotations
+python -m fish_viewer.annotation --audit /data/audit/audit.json --output /data/new-annotations
 ```
 
 Both paths are required. `--fish-root` relocates the original scans when the audit

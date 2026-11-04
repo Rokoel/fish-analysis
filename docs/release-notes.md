@@ -23,6 +23,9 @@ available. Cells rejected earlier by consensus or roundness are not restored.
 
 ## Downloads
 
+The source checkout retains one Linux launcher, `run-analysis.sh`; redundant
+Windows, setup and Python wrapper scripts have been removed.
+
 Windows x64 EXE and Linux x64 AppImage include all six model bundles and are
 published after native build and installed-application checks pass. Windows uses
 CPU; Linux supports CPU/NVIDIA GPU inference with its verified neural runtime.

@@ -86,14 +86,14 @@ See [editing and measurements](docs/fish-analysis.md) and
 
 ## Source installation and development
 
-Use Python 3.12. On Linux, run `./setup-analysis.sh` then `./run-analysis.sh`;
-on Windows, run `setup-analysis.bat` then `run-analysis.bat`.
-Setup installs the separate PyTorch signal runtime. The repository includes the
+Use Python 3.12 and the [source installation instructions](docs/fish-analysis.md#installation),
+then launch `./run-analysis.sh` on Linux or `fish-analysis` in the activated environment.
+The repository includes the
 six component bundles: two detectors, two selectable contour U-Nets and two
 selectable signal-center U-Nets, supporting the single consensus pipeline.
 
-`./run-viewer.sh` opens the general Viewer and developer training tools.
-`./run-annotator.sh --audit /absolute/path/audit.json --output /absolute/path/annotations`
+`python -m fish_viewer` opens the general Viewer and developer training tools.
+`python -m fish_viewer.annotation --audit /absolute/path/audit.json --output /absolute/path/annotations`
 opens the training annotator. Future training and evaluation require explicit data
 paths; historical training metadata and painted annotations are no longer bundled.
 The combined historical report stays local and is excluded from Git and releases;

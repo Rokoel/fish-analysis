@@ -2,9 +2,9 @@
 
 [Documentation](README.md) · [Analysis](fish-analysis.md)
 
-Use `./run-viewer.sh` or `run-viewer.bat` for general image/scene inspection and
-separate developer training tools. Auto-select contours opens Analysis, which
-provides only consensus and fine-tuned StarDist 2D. The retired classical contour
+Use `python -m fish_viewer` in the application environment for general image/scene
+inspection and separate developer training tools. Auto-select contours opens
+Analysis, which provides both-detector consensus. The retired classical contour
 pipeline is removed. Saved prediction/report overlays remain readable.
 
 The Viewer supports calibrated XY/XZ/YZ sections, 3D surfaces and volumes, channel

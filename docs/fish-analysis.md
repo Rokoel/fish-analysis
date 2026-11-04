@@ -7,10 +7,24 @@ and exports a standalone annotated Imaris image and an Excel workbook.
 
 ## Installation
 
-Use Python 3.12 for source installations. Run `./setup-analysis.sh`, then
-`./run-analysis.sh` on Linux; run `setup-analysis.bat`, then `run-analysis.bat`
-on Windows. Setup installs the separate PyTorch signal runtime. The six
-component model bundles are included in the repository. Native Windows runs the
+Use Python 3.12 for source installations. On Linux, create the application and
+signal environments once, then use the single launcher:
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[neural]'
+python3.12 -m venv .venv-spots
+.venv-spots/bin/python -m pip install torch==2.9.1 torchvision==0.24.1 --index-url https://download.pytorch.org/whl/cpu
+.venv-spots/bin/python -m pip install -r requirements-spots.txt
+./run-analysis.sh
+```
+
+For a compatible NVIDIA GPU, use the `neural-gpu` extra and the `cu128` PyTorch
+wheel index in place of `cpu`. On Windows, use Python 3.12 virtual environments
+named `.venv` and `.venv-spots`, install the same project extra, CPU PyTorch wheels
+and signal requirements using their `Scripts/python.exe` interpreters, then run
+`fish-analysis` with `.venv` activated. Packaged releases need no Python setup.
+The six component model bundles are included in the repository. Native Windows runs the
 TensorFlow cell models on CPU; Linux supports CPU and a configured NVIDIA GPU.
 Both platforms read the same image pixels and use the same physical calibration.
 
@@ -215,10 +229,6 @@ grids (0.3 µm for cell proposals, 0.15 µm for contour refinement and signal cr
 retaining coarser native axial spacing where required); their working resolution
 does not depend on the current display zoom or 3D preview setting.
 
-On Windows, run `setup-analysis.bat` when installing or updating this release.
-It automatically downloads the official Microsoft Visual C++ x64 runtime,
-checks its Microsoft signature, and installs it before setting up TensorFlow.
-Internet access and Windows administrator approval for the Microsoft installer
-may be required. If setup reports a required restart, restart before analysis.
-The release includes this setup integration; it does not redistribute Microsoft's
-installer binary. See [Microsoft's runtime documentation](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170).
+Windows source installations require the Microsoft Visual C++ x64 runtime;
+packaged EXEs include its required DLLs. See
+[Microsoft's runtime documentation](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170).

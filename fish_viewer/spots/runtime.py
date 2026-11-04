@@ -25,7 +25,7 @@ def interpreter():
         return str(path.absolute())
     if importlib.util.find_spec('torch'):
         return sys.executable
-    raise ValueError('Direct signal models require the optional PyTorch runtime. Run setup-spots.sh (Linux) or setup-spots.bat (Windows).')
+    raise ValueError('Direct signal models require PyTorch. Install the signal environment described in docs/fish-analysis.md.')
 
 
 def dispatch(arguments):
